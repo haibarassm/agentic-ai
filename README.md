@@ -31,6 +31,7 @@
 | 排查部署问题 | [openclaw-infra/checklists/troubleshooting.md](openclaw-infra/checklists/troubleshooting.md) |
 | 安全加固检查 | [openclaw-infra/checklists/security-checklist.md](openclaw-infra/checklists/security-checklist.md) |
 | 给 Agent 铸造灵魂（SOUL.md 设计） | [openclaw-soul/](openclaw-soul/) |
+| 配置心跳巡检与定时任务 | [openclaw-heartbeat/](openclaw-heartbeat/) |
 
 ## 目录结构
 
@@ -68,7 +69,14 @@
 │       ├── dev-assistant/            #   研发助手完整配置（课程实战版）
 │       ├── biz-assistant/            #   业务管家完整配置
 │       └── devops-agent/             #   DevOps 运维场景（社区案例）
-├── openclaw-heartbeat/               # 心跳引擎：Heartbeat 定时自动化（即将更新）
+├── openclaw-heartbeat/                # 心跳引擎：Heartbeat + Cron 自动化
+│   ├── README.md                     #   Cron vs Heartbeat 选型 + 四条黄金法则
+│   ├── lesson06-lab.md               #   第6节实验手册（可直接跟着操作）
+│   ├── templates/
+│   │   └── HEARTBEAT.md.example      #   通用模板（带注释的四步法骨架）
+│   └── examples/
+│       ├── morning-briefing-heartbeat.md  #  多轮资讯日报巡检配置
+│       └── memory-guardian-heartbeat.md   #  记忆守护巡检配置（含资讯巡检）
 ├── openclaw-skills/                  # 技能开发：Skills 编写与 ClawHub 生态（即将更新）
 ├── openclaw-multi-agent/             # 多 Agent 协作与路由调度（即将更新）
 └── claude-code/                      # Claude Code CLI 深度实战（即将更新）
@@ -111,6 +119,16 @@
 | [examples/dev-assistant/](openclaw-soul/examples/dev-assistant/) | 研发助手完整配置（课程实战版，含 SOUL.md + AGENTS.md） |
 | [examples/biz-assistant/](openclaw-soul/examples/biz-assistant/) | 业务管家完整配置 |
 | [examples/devops-agent/](openclaw-soul/examples/devops-agent/) | DevOps 运维场景（社区案例赏析） |
+
+### 📂 [openclaw-heartbeat/](openclaw-heartbeat/) — 心跳与定时任务
+
+| 文件 | 说明 |
+|------|------|
+| [README.md](openclaw-heartbeat/README.md) | Cron vs Heartbeat 选型指南 + HEARTBEAT.md 四条黄金法则 |
+| [lesson06-lab.md](openclaw-heartbeat/lesson06-lab.md) | 第6节实验手册：Cron + Heartbeat 组合实战 |
+| [templates/HEARTBEAT.md.example](openclaw-heartbeat/templates/HEARTBEAT.md.example) | 通用模板：带注释的四步法骨架（条件→判断→动作→静默） |
+| [examples/morning-briefing-heartbeat.md](openclaw-heartbeat/examples/morning-briefing-heartbeat.md) | 多轮资讯日报巡检配置（配合两个 Cron 任务使用） |
+| [examples/memory-guardian-heartbeat.md](openclaw-heartbeat/examples/memory-guardian-heartbeat.md) | 记忆守护巡检配置（含资讯巡检 + 记忆归档检查） |
 
 
 ## 部署架构
