@@ -1,7 +1,7 @@
 # 第12节 实验手册：云端部署小红书自动发布 Skill
 
 > 配套课程：AI 业务流架构师 · 第12节 云端执行体与跨端登录协作
-> 前置条件：已准备好 `lemons101/Xhs-Auto-Publisher-Cloud` 仓库，并能让龙虾访问目标云服务器
+> 前置条件：已准备好 `DjangoPeng/agentic-ai` 仓库（xhs-auto-publisher/ 目录），并能让龙虾访问目标云服务器
 > 操作方式：把本实验中的完整 Prompt 复制给龙虾执行，学员不需要直接登录服务器
 > 预计耗时：30-50 分钟
 
@@ -46,25 +46,26 @@ runtime/lobster-notify/<run_id>/login_qr.payload.json
 你现在帮我部署一个 Skill 到云服务器。
 
 目标仓库：
-GitHub - lemons101/Xhs-Auto-Publisher-Cloud
+GitHub - DjangoPeng/agentic-ai（xhs-auto-publisher/ 目录）
+https://github.com/DjangoPeng/agentic-ai/tree/main/xhs-auto-publisher
 
 目标机器信息：
 - Ubuntu 24.04.4 LTS
 - root 用户
-- 项目部署目录：/root/projects/xhs-auto-publisher-cloud
+- 项目部署目录：/root/projects/xhs-auto-publisher
 
 部署要求：
-1. 从 GitHub 拉取仓库到 `/root/projects/xhs-auto-publisher-cloud`
+1. 从 GitHub 拉取仓库到 `/root/projects/xhs-auto-publisher`
 2. 执行项目自带的系统依赖安装脚本：
-   `bash /root/projects/xhs-auto-publisher-cloud/deploy/install_system_ubuntu.sh`
+   `bash /root/projects/xhs-auto-publisher/deploy/install_system_ubuntu.sh`
 3. 执行项目自带的初始化脚本：
-   `cd /root/projects/xhs-auto-publisher-cloud && bash deploy/bootstrap_project.sh`
+   `cd /root/projects/xhs-auto-publisher && bash deploy/bootstrap_project.sh`
 4. 复制环境变量模板：
-   `cd /root/projects/xhs-auto-publisher-cloud && cp deploy/env.example .env`
+   `cd /root/projects/xhs-auto-publisher && cp deploy/env.example .env`
 5. 这次先不要改复杂配置，不需要 nginx，不需要 `XHS_PUBLIC_RUNTIME_BASE_URL`
 6. 这次只做“可运行性验证”，不要真的发布内容；把 `.env` 里的 `MODE` 设为 `draft`
 7. 执行一次手动测试：
-   `cd /root/projects/xhs-auto-publisher-cloud && bash deploy/run_with_xvfb.sh`
+   `cd /root/projects/xhs-auto-publisher && bash deploy/run_with_xvfb.sh`
 8. 运行后检查以下文件是否生成：
    - `runtime/runs/<run_id>/screenshots/login_qr.png`
    - `runtime/lobster-notify/<run_id>/login_qr.payload.json`
@@ -86,7 +87,7 @@ GitHub - lemons101/Xhs-Auto-Publisher-Cloud
 5. 当前卡在哪一步
 
 验收标准：
-- 项目目录已正确部署到 `/root/projects/xhs-auto-publisher-cloud`
+- 项目目录已正确部署到 `/root/projects/xhs-auto-publisher`
 - `.venv` 创建成功
 - Playwright Chromium 安装成功
 - 能成功跑起测试
@@ -104,7 +105,7 @@ GitHub - lemons101/Xhs-Auto-Publisher-Cloud
 
 龙虾回报时，重点检查：
 
-1. 仓库是否在 `/root/projects/xhs-auto-publisher-cloud`
+1. 仓库是否在 `/root/projects/xhs-auto-publisher`
 2. `.venv` 是否创建成功
 3. Playwright Chromium 是否安装成功
 4. `.env` 中是否是 `MODE=draft`
@@ -126,10 +127,10 @@ run_id:
 <run_id>
 
 二维码图片路径:
-/root/projects/xhs-auto-publisher-cloud/runtime/runs/<run_id>/screenshots/login_qr.png
+/root/projects/xhs-auto-publisher/runtime/runs/<run_id>/screenshots/login_qr.png
 
 payload 文件路径:
-/root/projects/xhs-auto-publisher-cloud/runtime/lobster-notify/<run_id>/login_qr.payload.json
+/root/projects/xhs-auto-publisher/runtime/lobster-notify/<run_id>/login_qr.payload.json
 ```
 
 如果两个文件都存在，本实验通过。
@@ -167,7 +168,7 @@ payload 文件路径:
 
 完成本实验时，应满足以下条件：
 
-- 项目目录已正确部署到 `/root/projects/xhs-auto-publisher-cloud`
+- 项目目录已正确部署到 `/root/projects/xhs-auto-publisher`
 - `.venv` 创建成功
 - Playwright Chromium 安装成功
 - 能成功跑起测试

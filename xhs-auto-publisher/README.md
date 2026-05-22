@@ -1,4 +1,4 @@
-# Xhs-Auto-Publisher-Cloud
+# xhs-auto-publisher
 
 一个面向云服务器的小红书图文自动发布 Skill。
 
@@ -74,19 +74,19 @@ runtime/lobster-notify/
 建议放在：
 
 ```bash
-/root/projects/xhs-auto-publisher-cloud
+/root/projects/xhs-auto-publisher
 ```
 
 ### 2. 安装系统依赖
 
 ```bash
-bash /root/projects/xhs-auto-publisher-cloud/deploy/install_system_ubuntu.sh
+bash /root/projects/xhs-auto-publisher/deploy/install_system_ubuntu.sh
 ```
 
 ### 3. 初始化项目环境
 
 ```bash
-cd /root/projects/xhs-auto-publisher-cloud
+cd /root/projects/xhs-auto-publisher
 bash deploy/bootstrap_project.sh
 ```
 
@@ -106,7 +106,7 @@ LOGIN_TIMEOUT=300
 ### 5. 手动执行一次
 
 ```bash
-cd /root/projects/xhs-auto-publisher-cloud
+cd /root/projects/xhs-auto-publisher
 bash deploy/run_with_xvfb.sh
 ```
 
@@ -146,7 +146,7 @@ runtime/lobster-notify/<run_id>/login_qr.payload.json
 推荐部署源：
 
 ```text
-https://github.com/lemons101/Xhs-Auto-Publisher-Cloud
+https://github.com/DjangoPeng/agentic-ai/tree/main/xhs-auto-publisher
 ```
 
 ## 说明

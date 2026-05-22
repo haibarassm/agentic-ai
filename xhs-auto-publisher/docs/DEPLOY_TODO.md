@@ -4,14 +4,14 @@
 
 - Ubuntu 24.04.4 LTS
 - root 用户
-- 项目目录：`/root/projects/xhs-auto-publisher-cloud`
+- 项目目录：`/root/projects/xhs-auto-publisher`
 
 ## 第一步：放置项目
 
 确认代码位于：
 
 ```bash
-/root/projects/xhs-auto-publisher-cloud
+/root/projects/xhs-auto-publisher
 ```
 
 ## 第二步：安装系统依赖
@@ -19,7 +19,7 @@
 执行：
 
 ```bash
-bash /root/projects/xhs-auto-publisher-cloud/deploy/install_system_ubuntu.sh
+bash /root/projects/xhs-auto-publisher/deploy/install_system_ubuntu.sh
 ```
 
 完成后回报：
@@ -33,7 +33,7 @@ bash /root/projects/xhs-auto-publisher-cloud/deploy/install_system_ubuntu.sh
 执行：
 
 ```bash
-cd /root/projects/xhs-auto-publisher-cloud
+cd /root/projects/xhs-auto-publisher
 bash deploy/bootstrap_project.sh
 ```
 
@@ -48,7 +48,7 @@ bash deploy/bootstrap_project.sh
 执行：
 
 ```bash
-cd /root/projects/xhs-auto-publisher-cloud
+cd /root/projects/xhs-auto-publisher
 cp deploy/env.example .env
 ```
 
@@ -70,7 +70,7 @@ LOGIN_TIMEOUT=300
 执行：
 
 ```bash
-cd /root/projects/xhs-auto-publisher-cloud
+cd /root/projects/xhs-auto-publisher
 bash deploy/run_with_xvfb.sh
 ```
 
@@ -102,14 +102,14 @@ runtime/lobster-notify/<run_id>/login_qr.payload.json
 
 协议文档：
 
-- [LOBSTER_NOTIFY_PROTOCOL.md](/D:/Openclaw/xhs-auto-publisher-cloud/docs/LOBSTER_NOTIFY_PROTOCOL.md)
+- [LOBSTER_NOTIFY_PROTOCOL.md](./LOBSTER_NOTIFY_PROTOCOL.md)
 
 ## 第七步：托管为 systemd 服务
 
 如果手动验证通过，再执行：
 
 ```bash
-cp /root/projects/xhs-auto-publisher-cloud/deploy/systemd/xhs-auto-publisher-cloud.service /etc/systemd/system/
+cp /root/projects/xhs-auto-publisher/deploy/systemd/xhs-auto-publisher-cloud.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable xhs-auto-publisher-cloud.service
 ```

@@ -2,7 +2,7 @@
 
 这份文档定义的是：
 
-- `xhs-auto-publisher-cloud` 如何把登录二维码交给龙虾
+- `xhs-auto-publisher` 如何把登录二维码交给龙虾
 - 龙虾应该如何读取 payload 并转发到飞书群
 
 ## 1. 文件位置
