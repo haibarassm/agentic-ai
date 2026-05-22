@@ -33,6 +33,7 @@
 | 给 Agent 铸造灵魂（SOUL.md 设计） | [openclaw-soul/](openclaw-soul) |
 | 配置心跳巡检与定时任务 | [openclaw-heartbeat/](openclaw-heartbeat) |
 | 开发自定义 Skill（SKILL.md 编写） | [openclaw-skills/](openclaw-skills) |
+| 云端部署小红书自动发布 Agent | [xhs-auto-publisher/](xhs-auto-publisher) |
 
 ## 目录结构
 
@@ -90,7 +91,8 @@
 │           └── SKILL.md              #   加密货币行情巡检 Skill（课程实战版）
 │
 ├── openclaw-multi-agent/             # 多 Agent 协作与路由调度（即将更新）
-└── claude-code/                      # Claude Code CLI 深度实战（即将更新）
+├── claude-code/                      # Claude Code CLI 深度实战（即将更新）
+└── xhs-auto-publisher/               # 第12节：云端小红书图文自动发布 Agent（Playwright + 龙虾通知）
 ```
 
 ### 📂 [openclaw-infra/](openclaw-infra) — 基础设施
