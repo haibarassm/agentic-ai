@@ -1,0 +1,44 @@
+{
+  "login_success_any": [
+    {"kind": "text", "value": "\u53d1\u5e03\u7b14\u8bb0"},
+    {"kind": "text", "value": "\u521b\u4f5c\u4e2d\u5fc3"},
+    {"kind": "css", "value": "a[href*='publish']"},
+    {"kind": "css", "value": "[class*='avatar']"}
+  ],
+  "publish_entry_any": [
+    {"kind": "text", "value": "\u53d1\u5e03\u7b14\u8bb0"},
+    {"kind": "text", "value": "\u53d1\u5e03"},
+    {"kind": "css", "value": "a[href*='publish']"}
+  ],
+  "image_upload_input_any": [
+    {"kind": "css", "value": "input[type='file'][accept*='image']"},
+    {"kind": "css", "value": "input[type='file'][accept*='.jpg']"},
+    {"kind": "css", "value": "input[type='file'][accept*='.png']"},
+    {"kind": "css", "value": "input[type='file']"}
+  ],
+  "image_tab_any": [
+    {"kind": "text", "value": "\u4e0a\u4f20\u56fe\u6587"}
+  ],
+  "title_input_any": [
+    {"kind": "placeholder", "value": "\u586b\u5199\u6807\u9898"},
+    {"kind": "placeholder", "value": "\u8bf7\u8f93\u5165\u6807\u9898"},
+    {"kind": "css", "value": "input[placeholder*='\u6807\u9898']"},
+    {"kind": "css", "value": "textarea[placeholder*='\u6807\u9898']"}
+  ],
+  "body_input_any": [
+    {"kind": "placeholder", "value": "\u6dfb\u52a0\u6b63\u6587"},
+    {"kind": "placeholder", "value": "\u8bf7\u8f93\u5165\u6b63\u6587"},
+    {"kind": "css", "value": "textarea[placeholder*='\u6b63\u6587']"},
+    {"kind": "css", "value": "[contenteditable='true']"}
+  ],
+  "publish_button_any": [
+    {"kind": "role", "role": "button", "name": "\u53d1\u5e03"},
+    {"kind": "text", "value": "\u53d1\u5e03"}
+  ],
+  "success_any": [
+    {"kind": "text", "value": "\u53d1\u5e03\u6210\u529f"},
+    {"kind": "text", "value": "\u63d0\u4ea4\u6210\u529f"},
+    {"kind": "text", "value": "\u5ba1\u6838"},
+    {"kind": "text", "value": "\u5df2\u53d1\u5e03"}
+  ]
+}

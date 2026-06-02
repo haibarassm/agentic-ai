@@ -6,6 +6,11 @@
 
 ---
 
+## 飞书官方插件使用指南
+
+
+[OpenClaw 飞书官方插件使用指南（公开版）](https://bytedance.larkoffice.com/docx/MFK7dDFLFoVlOGxWCv5cTXKmnMh)
+
 ## 一、前置检查
 
 ### 1.1 OpenClaw 版本
@@ -128,7 +133,8 @@ openclaw channels add
 ### 3.1 安装新版插件
 
 ```bash
-openclaw plugins install @larksuite/openclaw-lark --dangerously-force-unsafe-install
+# 教学需要, 锁定版本 如需要更新请移除锁定 版本 @2026.4.8 标记 -> openclaw plugins install @larksuite/openclaw-lark --dangerously-force-unsafe-install
+openclaw plugins install @larksuite/openclaw-lark@2026.4.8 --dangerously-force-unsafe-install
 ```
 
 安全扫描会报 WARNING（环境变量访问 + 网络发送），这是飞书官方插件的正常行为，加 `--dangerously-force-unsafe-install` 绕过。

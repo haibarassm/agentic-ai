@@ -1,0 +1,13 @@
+{
+  "platform": "xiaohongshu",
+  "runtime_mode": "cloud",
+  "creator_home_url": "https://creator.xiaohongshu.com/",
+  "publish_url": "https://creator.xiaohongshu.com/publish/publish",
+  "login_cache_hours": 12,
+  "min_publish_interval_minutes": 10,
+  "default_profile_dir": "runtime/browser-profile",
+  "default_runtime_dir": "runtime",
+  "notify_qr_via": "lobster_channel",
+  "feishu_title_prefix": "[XHS Cloud Login]",
+  "lobster_notify_dir": "runtime/lobster-notify"
+}
