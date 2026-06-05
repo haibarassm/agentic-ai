@@ -3,7 +3,7 @@
   "runtime_mode": "cloud",
   "creator_home_url": "https://creator.xiaohongshu.com/",
   "publish_url": "https://creator.xiaohongshu.com/publish/publish",
-  "login_cache_hours": 12,
+  "login_cache_hours": 168,
   "min_publish_interval_minutes": 10,
   "default_profile_dir": "runtime/browser-profile",
   "default_runtime_dir": "runtime",

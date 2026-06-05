@@ -133,8 +133,15 @@ class XhsPublisher:
 
     async def fill_note(self, content: XhsContent) -> None:
         self.audit.event("fill_note_start", image_count=len(content.images))
-        if content.images:
+        
+        # 检测是否为视频
+        is_video = any(str(img).lower().endswith(('.mp4', '.mov', '.avi', '.mkv')) for img in content.images)
+        
+        if is_video:
+            await self.upload_video(content.images[0])
+        elif content.images:
             await self.upload_images(content.images)
+        
         await fill_first(self.page, self.selectors["title_input_any"], content.title)
         self.audit.event("title_filled", length=len(content.title))
         await fill_first(self.page, self.selectors["body_input_any"], content.body_with_topics)
@@ -150,6 +157,75 @@ class XhsPublisher:
         await self.page.wait_for_timeout(5000)
         await self.audit.screenshot(self.page, "after_image_upload")
         self.audit.event("upload_images_done", count=len(images))
+
+    async def upload_video(self, video_path: Path) -> None:
+        """上传视频到小红书"""
+        self.audit.event("upload_video_start", video=str(video_path))
+        
+        # 选择视频Tab
+        await self.select_video_tab()
+        
+        # 上传视频文件
+        file_input = self.page.locator("input[type='file']").first
+        await file_input.set_input_files(str(video_path))
+        self.audit.event("video_file_selected")
+        
+        # 等待视频上传和处理完成
+        await self.audit.screenshot(self.page, "after_video_upload")
+        
+        # 检测上传完成标志
+        max_wait = 120
+        for i in range(max_wait):
+            await self.page.wait_for_timeout(1000)
+            
+            uploading = await self.page.locator("text=上传中").count() > 0
+            processing = await self.page.locator("text=处理中").count() > 0
+            has_video_preview = await self.page.locator("video").count() > 0 or await self.page.locator("text=秒").count() > 0
+            
+            upload_complete = not uploading and not processing and has_video_preview
+            
+            if i % 10 == 0:
+                await self.audit.screenshot(self.page, f"video_progress_{i}s")
+                self.audit.event("video_upload_progress", second=i, uploading=uploading, processing=processing, has_preview=has_video_preview)
+            
+            if upload_complete:
+                self.audit.event("video_upload_complete", waited_seconds=i)
+                break
+        
+        await self.audit.screenshot(self.page, "video_upload_final")
+        self.audit.event("upload_video_done")
+
+    async def select_video_tab(self) -> None:
+        """选择视频上传Tab"""
+        tab_text = "上传视频"
+        clicked = False
+        try:
+            locator = self.page.get_by_text(tab_text, exact=True).first
+            await locator.wait_for(state="visible", timeout=5000)
+            await locator.click()
+            clicked = True
+        except Exception as exc:
+            self.audit.event("video_tab_direct_click_failed", error=str(exc))
+            try:
+                await self.page.evaluate(
+                    f"""
+                    () => {{
+                        const candidates = Array.from(document.querySelectorAll('span, div'));
+                        const el = candidates.find(node => (node.innerText || node.textContent || '').trim() === '{tab_text}');
+                        if (!el) return false;
+                        el.scrollIntoView({{block: 'center'}});
+                        el.click();
+                        return true;
+                    }}
+                    """
+                )
+                clicked = True
+            except Exception as exc2:
+                self.audit.event("video_tab_js_click_failed", error=str(exc2))
+        
+        self.audit.event("video_tab_selected" if clicked else "video_tab_select_failed")
+        await self.page.wait_for_timeout(2000)
+        await self.audit.screenshot(self.page, "video_tab_selected")
 
     async def select_image_tab(self) -> None:
         tab_text = "上传图文"
