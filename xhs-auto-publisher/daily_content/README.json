@@ -1,0 +1,7 @@
+{
+  "title": "示例标题",
+  "body": "示例正文内容\n\n话题标签会自动添加",
+  "topics": ["猫咪", "宠物日常"],
+  "images": ["/path/to/video.mp4"],
+  "mode": "publish"
+}

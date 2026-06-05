@@ -90,8 +90,8 @@ def load_content(path: Path, *, mode_override: str | None = None) -> XhsContent:
             image_path = (base_dir / image_path).resolve()
         if not image_path.exists():
             raise ContentValidationError(f"image does not exist: {image_path}")
-        if image_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
-            raise ContentValidationError(f"unsupported image type: {image_path}")
+        if image_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".avi", ".mkv"}:
+            raise ContentValidationError(f"unsupported image/video type: {image_path}")
         image_paths.append(image_path)
 
     clean_topics = [str(topic).strip().lstrip("#") for topic in topics]
