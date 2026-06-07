@@ -291,11 +291,9 @@ MORNING_NEWSPAPER_ROOT=~/projects/agentic-ai/morning-newspaper
 - 发到当前渠道，不要换频道、不要另开对话、不要发到邮件
 - 不要只发"今日 AI 早报已更新 + 链接"
 - 必须带前三条标题和一句话摘要
-```
 
-建议最终消息格式固定为：
+建议消息格式：
 
-```text
 今日 AI 早报已更新
 
 今日前三条：
@@ -324,11 +322,9 @@ http://<你的服务器IP>:8510/dashboard.html
 4. 需要人工处理的点
 
 请不要静默失败，也不要只写日志不发当前渠道消息。
-```
 
-失败消息可以使用这个格式：
+建议失败消息格式：
 
-```text
 今日 AI 早报生成失败
 
 失败步骤：<collect / shortlist / draft / ranking / build_dashboard / quality>
