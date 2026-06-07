@@ -158,6 +158,26 @@ topics:
 
 不配置 `TAVILY_API_KEY` 时，采集脚本仍可正常运行（GitHub、HN、RSS 不受影响），但 Tavily 搜索结果为空。
 
+## GitHub Token 配置
+
+GitHub 采集器通过 Search API 查询高星仓库。不配置 Token 也能运行，但匿名请求限制为每分钟 10 次，配置后提升到每分钟 30 次。
+
+获取步骤：
+
+1. 登录 GitHub → 点击右上角头像 → **Settings**
+2. 左侧栏最底部 → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+3. 点击 **Generate new token**，填写 Token 名称（如 `morning-newspaper`），过期时间建议 90 天
+4. **Repository access** 选 **Public Repositories (read-only)**，无需勾选额外权限
+5. 点击 **Generate token**，复制生成的 `github_pat_...` 字符串
+
+在 `.env` 中配置：
+
+```bash
+GITHUB_TOKEN=github_pat_your_token_here
+```
+
+> Classic Token（`ghp_` 开头）同样可用，创建时勾选 `public_repo` 权限即可。
+
 ## 邮箱提醒配置
 
 邮箱采集用于早报的"紧急事务侧栏"，不参与资讯 Top10 排序。支持任何提供 IMAP/POP3 服务的邮箱（163、QQ、Gmail、Outlook 等），课程以 163 邮箱为例演示。
