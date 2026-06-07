@@ -1,0 +1,20 @@
+# Python / editor
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+
+# Runtime generated outputs
+runtime/**
+!runtime/.gitkeep
+
+# Optional local environment files
+.env
+.env.*
