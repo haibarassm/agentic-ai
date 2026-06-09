@@ -1,0 +1,26 @@
+# Python / editor
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+
+# Runtime generated outputs
+runtime/**
+!runtime/.gitkeep
+
+# Virtual environment
+.venv/
+venv/
+
+# Optional local environment / config files
+.env
+.env.*
+!.env.example
+feishu_config.json

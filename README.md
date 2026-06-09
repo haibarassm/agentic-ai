@@ -35,6 +35,8 @@
 | 开发自定义 Skill（SKILL.md 编写） | [openclaw-skills/](openclaw-skills) |
 | 云端部署小红书自动发布 Agent | [xhs-auto-publisher/](xhs-auto-publisher) |
 | 全自动财务填报与票据识别 Agent | [financial-automation/](financial-automation) |
+| 多平台智能早报管家（信号分诊 + 三关口编辑） | [morning-newspaper/](morning-newspaper) |
+| CRM 会议资产沉淀（四段式架构 + 历史强值保护） | [CRM-Assistant/](CRM-Assistant) |
 
 ## 目录结构
 
@@ -94,7 +96,9 @@
 ├── openclaw-multi-agent/             # 多 Agent 协作与路由调度（即将更新）
 ├── claude-code/                      # Claude Code CLI 深度实战（即将更新）
 ├── xhs-auto-publisher/               # 第12节：云端小红书图文自动发布 Agent（Playwright + 龙虾通知）
-└── financial-automation/             # 第13节：全自动财务填报与票据识别 Agent（OCR + 飞书 Bitable）
+├── financial-automation/             # 第13节：全自动财务填报与票据识别 Agent（OCR + 飞书 Bitable）
+├── morning-newspaper/               # 第14节：多平台智能早报管家（信号分诊 + 三关口 LLM 编辑 + 飞书推送）
+└── CRM-Assistant/                   # 第15节：CRM 会议资产沉淀（四段式架构 + 历史强值保护 + 飞书两表）
 ```
 
 ### 📂 [openclaw-infra/](openclaw-infra) — 基础设施
@@ -153,6 +157,17 @@
 | [lesson09-lab.md](openclaw-skills/lesson09-lab.md) | 第9节实验手册：CoinGecko 注册 → 环境变量 → 创建 Skill → 手动测试 → Cron 定时 |
 | [templates/SKILL.md.example](openclaw-skills/templates/SKILL.md.example) | 通用模板：带注释的 Frontmatter + Markdown Body 骨架（复制即用） |
 | [examples/crypto-monitor/SKILL.md](openclaw-skills/examples/crypto-monitor/SKILL.md) | 加密货币行情巡检 Skill 完整配置（课程实战版，含异常处理 + Cron） |
+
+### 📂 [CRM-Assistant/](CRM-Assistant) — CRM 会议资产沉淀
+
+| 文件 | 说明 |
+| --- | --- |
+| [README.md](CRM-Assistant/README.md) | 四段式架构（接入→理解→判断→沉淀）+ 快速开始 + 飞书写表指南 |
+| [lesson15-lab.md](CRM-Assistant/lesson15-lab.md) | 第15节实验手册：建表 → 部署 → 配置 → 本地验证 → 模拟写表 → 真实落表 → Skill 注册 |
+| [scripts/crm_assistant.py](CRM-Assistant/scripts/crm_assistant.py) | Python CLI 主入口，12 个子命令覆盖完整链路 |
+| [references/llm_prompt_template.md](CRM-Assistant/references/llm_prompt_template.md) | Prompt 模板：每个字段的判断标准、证据口径、边界条件 |
+| [references/llm_output_schema.md](CRM-Assistant/references/llm_output_schema.md) | Schema 约束：输出 JSON 结构、字段名、枚举值 |
+| [skills/crm-assistant/SKILL.md](CRM-Assistant/skills/crm-assistant/SKILL.md) | OpenClaw Skill 入口契约 |
 
 ## 部署架构
 
