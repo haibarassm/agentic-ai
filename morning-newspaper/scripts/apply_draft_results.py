@@ -34,6 +34,11 @@ def main() -> None:
     if not result_path.exists():
         raise SystemExit(f"draft result file not found: {result_path}")
 
+    if result_path.stat().st_mtime < input_path.stat().st_mtime:
+        raise SystemExit(
+            f"{result_path.name} is older than {input_path.name} — stale result from a previous run, please regenerate"
+        )
+
     input_payload = json.loads(input_path.read_text(encoding="utf-8"))
     result_payload = json.loads(result_path.read_text(encoding="utf-8"))
     input_items = input_payload.get("items", []) if isinstance(input_payload, dict) else []

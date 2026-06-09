@@ -34,6 +34,11 @@ def main() -> None:
     if not selected_path.exists():
         raise SystemExit(f"selected titles file not found: {selected_path}")
 
+    if selected_path.stat().st_mtime < input_path.stat().st_mtime:
+        raise SystemExit(
+            f"{selected_path.name} is older than {input_path.name} — stale result from a previous run, please regenerate"
+        )
+
     input_payload = json.loads(input_path.read_text(encoding="utf-8"))
     selected_payload = json.loads(selected_path.read_text(encoding="utf-8"))
     items = input_payload.get("items", []) if isinstance(input_payload, dict) else []
@@ -42,14 +47,6 @@ def main() -> None:
         ranked_titles = selected_payload.get("ranked_titles", []) or selected_payload.get("selected_titles", [])
     if not isinstance(items, list) or not isinstance(ranked_titles, list):
         raise SystemExit("invalid input format")
-
-    selected_map = {str(title).strip(): idx for idx, title in enumerate(ranked_titles, 1) if str(title).strip()}
-    available_titles = {str(item.get("title", "")).strip() for item in items if isinstance(item, dict) and str(item.get("title", "")).strip()}
-    matched_titles = [title for title in ranked_titles if str(title).strip() in available_titles]
-    if ranked_titles and (not matched_titles or len(matched_titles) < min(len(ranked_titles), max(3, len(ranked_titles) // 2))):
-        raise SystemExit(
-            f"selected titles appear stale or mismatched: matched {len(matched_titles)}/{len(ranked_titles)} titles against current input"
-        )
 
     shortlist: List[Dict[str, Any]] = []
     seen_titles: set[str] = set()

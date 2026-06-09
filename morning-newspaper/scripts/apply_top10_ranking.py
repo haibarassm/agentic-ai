@@ -35,6 +35,11 @@ def main() -> None:
     if not selected_path.exists():
         raise SystemExit(f"ranking result file not found: {selected_path}")
 
+    if selected_path.stat().st_mtime < input_path.stat().st_mtime:
+        raise SystemExit(
+            f"{selected_path.name} is older than {input_path.name} — stale result from a previous run, please regenerate"
+        )
+
     input_payload = json.loads(input_path.read_text(encoding="utf-8"))
     selected_payload = json.loads(selected_path.read_text(encoding="utf-8"))
     items = input_payload.get("items", []) if isinstance(input_payload, dict) else []
