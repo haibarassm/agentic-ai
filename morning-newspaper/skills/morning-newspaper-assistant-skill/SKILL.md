@@ -34,43 +34,72 @@ description: 当用户希望生成 AI 早报、运行晨报链路、查看今日
 
 ### A. 每日稳定主流程
 
-优先使用：
+**重要：不要直接执行 `run_daily_pipeline.py`。** 该脚本是批处理入口，不会生成 LLM 结果文件。必须按以下步骤逐步执行，在每个"LLM 关口"处读取 prompt 文件、生成结果、再继续。
+
+#### 第一阶段：采集与准备
 
 ```bash
-python3 scripts/run_daily_pipeline.py
+python3 scripts/collect_mailbox.py
+python3 scripts/collect_raw.py
+python3 scripts/enrich_content.py
+python3 scripts/prepare_title_shortlist.py
 ```
 
-它会按顺序执行：
+产出：
+- `runtime/collected_raw.json`
+- `runtime/content_enriched.json`
+- `runtime/title_candidates.json`
+- `runtime/title_shortlist_prompt.txt`
 
-1. 采集邮箱提醒
-   - `runtime/executive_mailbox.json`
-   - `runtime/mail_event_queue.json`
-2. 运行候选采集
-   - `runtime/collected_raw.json`
-3. 运行正文抓取
-   - `runtime/content_enriched.json`
-4. 准备标题粗筛输入
-   - `runtime/title_candidates.json`
-   - `runtime/title_shortlist_prompt.txt`
-5. 应用标题粗筛结果
-   - `runtime/title_shortlist_result.json`
-   - `runtime/shortlist.json`
-6. 准备正文成稿输入
-   - `runtime/draft_input.json`
-   - `runtime/draft_prompt.txt`
-7. 应用成稿结果
-   - `runtime/draft_result.json`
-   - `runtime/drafted_items.json`
-8. 准备 Top10 精排输入
-   - `runtime/top10_ranking_input.json`
-   - `runtime/top10_ranking_prompt.txt`
-9. 应用 Top10 精排结果
-   - `runtime/top10_ranking_result.json`
-   - `runtime/top10_publishable.json`
-10. 生成页面
-   - `runtime/dashboard.html`
-11. 运行稳定性检查
-   - `scripts/check_runtime_status.py`
+#### LLM 关口 1：标题粗筛
+
+读取 `runtime/title_shortlist_prompt.txt`，按 prompt 要求生成结果，写入 `runtime/title_shortlist_result.json`。
+
+**必须基于本轮 `title_candidates.json` 生成，不能复用旧文件。**
+
+然后继续：
+
+```bash
+python3 scripts/apply_title_shortlist.py
+python3 scripts/prepare_draft_input.py
+```
+
+产出：`runtime/shortlist.json`、`runtime/draft_input.json`、`runtime/draft_prompt.txt`
+
+#### LLM 关口 2：中文成稿
+
+读取 `runtime/draft_prompt.txt`，按 prompt 要求生成结果，写入 `runtime/draft_result.json`。
+
+**必须基于本轮 `draft_input.json` 生成，不能复用旧文件。**
+
+然后继续：
+
+```bash
+python3 scripts/apply_draft_results.py
+python3 scripts/prepare_top10_ranking.py
+```
+
+产出：`runtime/drafted_items.json`、`runtime/top10_ranking_input.json`、`runtime/top10_ranking_prompt.txt`
+
+#### LLM 关口 3：Top10 精排
+
+读取 `runtime/top10_ranking_prompt.txt`，按 prompt 要求生成结果，写入 `runtime/top10_ranking_result.json`。
+
+**必须基于本轮 `top10_ranking_input.json` 生成，不能复用旧文件。**
+
+然后继续：
+
+```bash
+python3 scripts/apply_top10_ranking.py
+python3 scripts/build_dashboard.py
+python3 scripts/check_runtime_status.py
+```
+
+产出：`runtime/top10_publishable.json`、`runtime/dashboard.html`
+
+#### 防串轮次机制
+
+每个 apply 脚本会检查结果文件的修改时间是否晚于输入文件。如果结果文件更旧，说明是上一轮遗留的，脚本会报错要求重新生成。遇到此错误时，必须删掉旧文件、重新读取当前 prompt 生成新结果。
 
 ### B. 只重建页面
 
