@@ -1,0 +1,75 @@
+runtime:
+  output_dir: runtime
+  lookback_days: 3
+
+fixed_sources:
+  - id: github_high_stars
+    enabled: true
+    source_group: primary
+    source_type: github_high_stars
+    source_name: GitHub 高星项目
+    max_items: 6
+    endpoint: https://api.github.com/search/repositories
+    auth_env: GITHUB_TOKEN
+    since_days: 3
+    min_stars: 80
+    per_query_limit: 10
+    languages: [Python, TypeScript, Go, Rust]
+    extra_queries: [topic:ai, topic:agent]
+
+  - id: hackernews_top
+    enabled: true
+    source_group: primary
+    source_type: hackernews_top
+    source_name: Hacker News 热门故事
+    max_items: 6
+    endpoint: https://hacker-news.firebaseio.com/v0
+    stories_type: topstories
+    max_stories: 20
+    timeout_seconds: 15
+
+  - id: sec_press_releases
+    enabled: true
+    source_group: background
+    source_type: rss
+    source_name: SEC 新闻稿
+    max_items: 2
+    url: https://www.sec.gov/news/pressreleases.rss
+
+  - id: fed_press_all
+    enabled: true
+    source_group: background
+    source_type: rss
+    source_name: 美联储新闻稿
+    max_items: 1
+    url: https://www.federalreserve.gov/feeds/press_all.xml
+
+paused_sources:
+  - id: github_security_advisories
+    reason: 先暂停，避免安全公告把 AI 早报带成漏洞简报。
+  - id: executive_mailbox
+    reason: 私有提醒不进入公开早报。
+
+tavily_search:
+  enabled: true
+  provider: tavily-rest-api
+  max_items_per_topic: 3
+  recency_days: 3
+  fallback_recency_days: 3
+  topics:
+    - id: ai_frontier_technology
+      name: AI 前沿技术
+      query: latest AI model release multimodal reasoning inference benchmark
+      domains: [openai.com, anthropic.com, deepmind.google, ai.meta.com, huggingface.co, arxiv.org]
+    - id: ai_agent_open_source
+      name: AI Agent 与开源工具
+      query: AI agent MCP coding agent open source GitHub Hacker News
+      domains: [github.com, news.ycombinator.com, huggingface.co]
+    - id: ai_business_adoption
+      name: AI 商业化与企业采用
+      query: AI enterprise adoption cloud software earnings customer demand
+      domains: [reuters.com, bloomberg.com, cnbc.com, ft.com, wsj.com]
+    - id: ai_startup_product_funding
+      name: AI 创业融资与产品发布
+      query: AI startup funding product launch acquisition enterprise software
+      domains: [reuters.com, bloomberg.com, cnbc.com, techcrunch.com, theverge.com]
