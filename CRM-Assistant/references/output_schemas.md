@@ -1,23 +1,57 @@
-﻿# 输出结构说明
+# 输出结构说明
 
-主处理脚本会输出 8 份核心 JSON 产物。
+当前项目的核心输出，是一组稳定的 CRM JSON 产物，以及两张飞书表的写入对象。
 
-## 1. `crm_packet.json`
+---
 
-这是总包文件，包含所有下游对象：
+## 1. 核心输出文件
+
+主处理流程通常会输出这些文件：
+- `crm_packet.json`
+- `meeting_record.json`
+- `customer_profile_update.json`
+- `opportunity_update.json`
+- `follow_up_task.json`
+- `pre_meeting_brief.json`
+- `customer_table_rows.json`
+- `opportunity_snapshot_row.json`
+
+兼容旧版本时，也可能看到：
+- `customer_table_row.json`
+- `customer_profile_updates.json`
+
+其中当前更应优先关注的是：
+- `customer_table_rows.json`：支持多客户场景
+- `opportunity_snapshot_row.json`：本轮商机快照
+
+---
+
+## 2. `crm_packet.json`
+
+总包对象，用于汇总所有下游结果。
+
+常见内容：
 - `input`
 - `meeting`
-- `customer_profile_update`
+- `customer_profile_update` 或 `customer_profile_updates`
 - `opportunity_update`
 - `follow_up_task`
 - `pre_meeting_brief`
-- `customer_table_row`
+- `customer_table_row` 或 `customer_table_rows`
 - `opportunity_snapshot_row`
 - `feishu_bitable_payload`
 
-## 2. `meeting_record.json`
+说明：
+- 单客户老样本里可能还是 `customer_table_row`
+- 多客户链路里会更常见 `customer_table_rows`
 
-会议维度输出，描述本次会议的结构化结果：
+---
+
+## 3. `meeting_record.json`
+
+会议维度输出，用来表达本次会议本身的结构化结果。
+
+常见字段：
 - `meeting_id`
 - `customer_id`
 - `customer_name`
@@ -30,9 +64,13 @@
 - `next_actions`
 - `commitments`
 
-## 3. `customer_profile_update.json`
+---
 
-客户画像增量更新对象：
+## 4. `customer_profile_update.json`
+
+客户画像增量结果。
+
+常见字段：
 - `customer_id`
 - `company_name`
 - `industry`
@@ -44,9 +82,17 @@
 - `communication_style`
 - `profile_summary`
 
-## 4. `opportunity_update.json`
+说明：
+- 这是“模型/规则理解结果”层，不等于最终写入飞书前的最终合并结果
+- 真正写 客户信息表前，还会应用“弱值保护”和字段合并规则
 
-商机评估结果：
+---
+
+## 5. `opportunity_update.json`
+
+商机评估结果。
+
+常见字段：
 - `opportunity_id`
 - `opportunity_name`
 - `opportunity_description`
@@ -60,9 +106,28 @@
 - `next_follow_up_at`
 - `latest_progress`
 
-## 5. `follow_up_task.json`
+### 当前阶段枚举
+只允许以下 6 个值：
+- `初次接触`
+- `需求确认`
+- `方案沟通`
+- `推进中`
+- `待成交`
+- `已成交`
 
-给销售负责人执行的跟进任务对象：
+### 意向等级枚举
+只允许：
+- `low`
+- `medium`
+- `high`
+
+---
+
+## 6. `follow_up_task.json`
+
+给销售负责人执行的跟进任务对象。
+
+常见字段：
 - `task_title`
 - `owner`
 - `due_at`
@@ -70,9 +135,13 @@
 - `draft_message`
 - `checklist`
 
-## 6. `pre_meeting_brief.json`
+---
 
-会前简报对象。即使没有立刻触发提醒，也会先生成这个结构；如果 `next_meeting_at` 为空，则暂不执行提醒。
+## 7. `pre_meeting_brief.json`
+
+会前简报对象。
+
+常见字段：
 - `next_meeting_at`
 - `trigger_at`
 - `headline`
@@ -81,14 +150,21 @@
 - `watchouts`
 - `materials_to_prepare`
 
-## 7. `customer_table_row.json`
+说明：
+- 即使没有立刻触发提醒，也可以先生成这个结构
+- 如果 `next_meeting_at` 为空，则通常不会继续做提醒动作
 
-写入飞书“客户信息表”的单行数据对象，适合按 `客户ID` 做 upsert。
+---
 
-核心字段：
+## 8. 客户信息写入对象
+
+当前项目最终落飞书时，更应关注的是 客户信息的最终写入结果。
+
+常见字段：
 - `客户ID`
 - `客户名称`
 - `客户公司`
+- `职务`
 - `行业`
 - `MBTI`
 - `是否单身`
@@ -101,11 +177,25 @@
 - `最后更新时间`
 - `数据来源`
 
-## 8. `opportunity_snapshot_row.json`
+### 写入规则
+- 逻辑主键：客户身份 / `客户ID`
+- 写入模式：`upsert`
+- 弱值不覆盖强值：
+  - `未明确`
+  - `未知`
+  - `待确认`
+  - 空值
+- 以下字段采用合并策略：
+  - `沟通风格`
+  - `风险顾虑`
 
-写入飞书“商机推进快照表”的单行数据对象，适合每次会议结束后直接 append。
+---
 
-核心字段：
+## 9. `opportunity_snapshot_row.json`
+
+写入飞书 商机快照表的一条快照记录。
+
+常见字段：
 - `商机ID`
 - `客户ID`
 - `客户名称`
@@ -125,26 +215,35 @@
 - `商机负责人`
 - `数据来源`
 
-## `feishu_bitable_payload` 说明
+### 写入规则
+- 写入模式：`append`
+- 每次会议一条新快照
+- 不覆盖历史，保留推进轨迹
 
-该对象固定采用两表结构：
+---
+
+## 10. `feishu_bitable_payload`
+
+这是 CRM 结果与飞书写表之间的桥梁对象。
+
+固定两表结构：
 
 ### `customer_table`
-- `mode`: 固定为 `upsert`
-- `key_field`: 固定为 `客户ID`
+- `mode`: `upsert`
+- `key_field`: `客户ID`
 - `key`: 当前客户 ID
-- `update_fields`: 对应 `customer_table_row.json`
+- `update_fields`: 客户信息最终写入字段
 
 ### `opportunity_snapshot_table`
-- `mode`: 固定为 `append`
-- `append_row`: 对应 `opportunity_snapshot_row.json`
+- `mode`: `append`
+- `append_row`: 当前商机快照
 
-## 业务解释规则
+---
 
-- 所有数组字段都应理解为“增量证据集合”，而不是一次性最终结论。
-- 客户信息表用于沉淀长期画像，原则上按客户维度更新。
-- 商机推进快照表用于保留每次会议后的状态切片，原则上只新增，不覆盖历史。
-- `high_value_flag` 主要用于优先级判断，不代表正式客户分层标签。
-- `recommended_action` 应保持简短、明确、可执行。
-- `opportunity_stage` 当前支持 6 个值：`初次接触`、`需求确认`、`方案沟通`、`推进中`、`待成交`、`已成交`。
-- `已成交` 表示合同、金额、付款节点或成交结论已经锁定，后续重点从商务推进切换到启动与交付执行。
+## 11. 业务解释规则
+
+- 客户信息表用于沉淀长期画像
+- 商机推进快照表用于保留每轮会议后的状态切片
+- `recommended_action` 应短、准、可执行
+- `high_value_flag` / `高净值优先` 用于优先级判断，不等于正式分层标签
+- 在没有明确证据时，不要用本轮弱结论覆盖长期客户已知信息

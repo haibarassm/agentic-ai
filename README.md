@@ -164,7 +164,7 @@
 | --- | --- |
 | [README.md](CRM-Assistant/README.md) | 四段式架构（接入→理解→判断→沉淀）+ 快速开始 + 飞书写表指南 |
 | [lesson15-lab.md](CRM-Assistant/lesson15-lab.md) | 第15节实验手册：建表 → 部署 → 配置 → 本地验证 → 模拟写表 → 真实落表 → Skill 注册 |
-| [scripts/crm_assistant.py](CRM-Assistant/scripts/crm_assistant.py) | Python CLI 主入口，12 个子命令覆盖完整链路 |
+| [scripts/crm_assistant.py](CRM-Assistant/scripts/crm_assistant.py) | Python CLI 主入口，覆盖接入/理解/判断/沉淀完整链路 |
 | [references/llm_prompt_template.md](CRM-Assistant/references/llm_prompt_template.md) | Prompt 模板：每个字段的判断标准、证据口径、边界条件 |
 | [references/llm_output_schema.md](CRM-Assistant/references/llm_output_schema.md) | Schema 约束：输出 JSON 结构、字段名、枚举值 |
 | [skills/crm-assistant/SKILL.md](CRM-Assistant/skills/crm-assistant/SKILL.md) | OpenClaw Skill 入口契约 |
