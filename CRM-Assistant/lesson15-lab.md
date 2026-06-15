@@ -15,7 +15,9 @@
 | 2 | 飞书开发者应用 | 有 App ID / App Secret，并已开通多维表格相关权限（读权限即可，写表走用户权限） |
 | 3 | 飞书多维表格 | 可以新建，也可以沿用已有 CRM Demo Base |
 | 4 | 课程仓库已 clone | `~/projects/agentic-ai` 存在且可 `git pull` |
-| 5 | 一份飞书会议原始 JSON | 仓库自带 demo，不用自己准备 |
+| 5 | 一份飞书会议纪要 | 仓库自带 `assets/meeting_docs/*.docx`，不用自己准备 |
+
+> 本实验只走主线：**飞书会议纪要（Word/DOCX）→ CRM Assistant → 飞书客户信息、商机快照两张表**。飞书写表统一使用**用户权限**完成。
 
 ---
 
@@ -28,11 +30,11 @@
 
 要求：
 1. 新建一个 Bitable
-2. 创建两张表：客户信息和商机快照
+2. 创建两张表：客户信息、商机快照
 3. 字段名称必须和下面完全一致，先全部按文本字段创建；Lead Score 可用数字字段，高净值优先可用复选框字段，时间字段可用日期时间字段
 
 客户信息字段：
-客户ID、客户名称、客户公司、行业、MBTI、是否单身、沟通风格、成交阻力、价格敏感程度、风险顾虑、客户画像摘要、客户负责人、最后更新时间、数据来源
+客户ID、客户名称、客户公司、行业、职务、MBTI、是否单身、沟通风格、成交阻力、价格敏感程度、风险顾虑、客户画像摘要、客户负责人、最后更新时间、数据来源
 
 商机快照字段：
 商机ID、客户ID、客户名称、客户公司、机会名称、商机描述、当前阶段、Lead Score、意向等级、高净值优先、销售区域、业务价值、推荐动作、最新进展、下次跟进时间、最近会议时间、商机负责人、数据来源
@@ -63,13 +65,15 @@
 3. 创建 Python 虚拟环境 .venv（如已存在跳过）
 4. 安装 requirements.txt
 5. 从 .env.example 复制出 .env.local（如已存在跳过）
-6. 确认 CRM-Assistant 的命令行入口可以正常打开帮助信息
+6. 确认仓库里存在 assets/meeting_docs 目录，并且里面有 .docx 测试会议纪要
+7. 确认 CRM-Assistant 的命令行入口可以正常打开帮助信息
 
 完成后告诉我：
 - git pull 是否成功（有无新的提交拉下来）
 - .venv 虚拟环境是否已新建或确认可用
 - 依赖是否安装成功
 - .env.local 是否已存在或已创建
+- assets/meeting_docs 下有哪些 .docx 文件
 - CRM-Assistant 的帮助信息是否能正常输出
 ```
 
@@ -95,6 +99,11 @@ FEISHU_APP_SECRET=xxxxxxxx
 FEISHU_BITABLE_APP_TOKEN=xxxxxxxx
 FEISHU_CUSTOMER_TABLE_ID=tblxxxxxxxx
 FEISHU_OPPORTUNITY_TABLE_ID=tblxxxxxxxx
+
+要求：
+1. .env.local 只保存在本地，不要提交到 git
+2. 写完后确认文件存在
+3. 不要在回复里完整展示 FEISHU_APP_SECRET
 ```
 
 ---
@@ -108,18 +117,18 @@ FEISHU_OPPORTUNITY_TABLE_ID=tblxxxxxxxx
 
 项目目录：~/projects/agentic-ai/CRM-Assistant
 
-请使用仓库自带的样本 assets/feishu_raw/pingan_longxiahezi_need_confirmation.json，先把飞书原始数据整理成 context 和 transcript，再继续生成 CRM 结构化结果。
+请使用仓库自带的 Word 会议纪要 assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx，执行 ingest-docx-to-bitable，把它解析成 context 和 transcript，再继续生成 CRM 结构化结果。
 
-这一步只做本地处理，不要写入飞书。输出目录请放在 runtime/lab15_probe/ 下面，方便后续继续使用。
+这一步不要加 --sync-feishu，只做本地处理，不要写入飞书。输出目录请放在 runtime/lab15_probe/ 下面，方便后续继续使用。
 
 执行完后告诉我：
-1. 是否生成 context.json 和 transcript.txt
+1. 是否生成 source_doc.md、context.json 和 transcript.txt
 2. 是否生成 crm_packet.json
-3. 是否生成 customer_table_row.json 和 opportunity_snapshot_row.json
+3. 是否生成 customer_table_rows.json 和 opportunity_snapshot_row.json
 4. 当前商机阶段、Lead Score、意向等级、推荐动作分别是什么
 ```
 
-> **⚠️ 注意**：这一步只验证本地结构化处理，不会真实写入飞书。确认 `crm_packet.json` 和两张表行文件都有内容即可继续。
+> **⚠️ 注意**：这一步只验证本地结构化处理。`ingest-docx-to-bitable` 不带 `--sync-feishu` 时不会写飞书。确认 `crm_packet.json` 和两张表行文件都有内容即可继续。
 
 ---
 
@@ -155,13 +164,15 @@ dry-run 会生成写表计划，但不会真实写入飞书。
 ```text
 请用 CRM-Assistant 做一次飞书写表 dry-run。
 
-请使用 runtime/lab15_probe/crm_packet.json 和项目根目录的 .env.local。飞书写表请使用用户权限（user identity），不要使用应用权限。这一步只生成写表计划，不要真实写入飞书。输出结果请保存到 runtime/lab15_feishu/dry_run。
+项目目录：~/projects/agentic-ai/CRM-Assistant
+
+请使用 assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx 和项目根目录的 .env.local，执行 ingest-docx-to-bitable，并加上 --sync-feishu --dry-run。飞书写表请使用用户权限（user identity），不要使用应用权限。这一步只生成写表计划，不要真实写入飞书。输出结果请保存到 runtime/lab15_feishu/dry_run。
 
 执行完后告诉我：
 1. feishu_sync_result.json 是否已生成
 2. dry_run 是否为 true
 3. customer_action 和 opportunity_action 是否都是 preview_only
-4. 待写入的客户名称、当前阶段、Lead Score、推荐动作分别是什么
+4. 待写入的客户名称、机会名称、当前阶段、Lead Score、推荐动作分别是什么
 ```
 
 > **⚠️ 注意**：看到 `feishu_sync_result.json` 不代表已经写入飞书。只有去掉 `--dry-run` 后才会真实写入。
@@ -175,49 +186,44 @@ dry-run 会生成写表计划，但不会真实写入飞书。
 ```text
 请用 CRM-Assistant 把本次 CRM 结果真实写入飞书多维表格。
 
-请使用 runtime/lab15_probe/crm_packet.json 和项目根目录的 .env.local。飞书写表请使用用户权限（user identity），不要使用应用权限。这一次请真实写入飞书：客户信息表按客户 ID 新增或更新，商机快照表追加一条商机推进快照。输出结果请保存到 runtime/lab15_feishu/write_once。
+项目目录：~/projects/agentic-ai/CRM-Assistant
+
+请使用 assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx 和项目根目录的 .env.local，执行 ingest-docx-to-bitable，加上 --sync-feishu（这次不要加 --dry-run）。飞书写表请使用用户权限（user identity），不要使用应用权限：客户信息表按客户 ID 新增或更新，商机快照表追加一条商机推进快照。输出结果请保存到 runtime/lab15_feishu/write_once。
 
 执行完成后告诉我：
 1. 是否写入成功
-2. 客户信息是新增还是更新
-3. 商机快照是否追加成功
-4. 本次写入的客户名称、当前阶段、Lead Score、意向等级、推荐动作
-5. 如果失败，返回失败命令和完整报错
+2. 是否确认是用户侧写入
+3. 客户信息是新增还是更新
+4. 商机快照是否追加成功
+5. 本次写入的客户名称、机会名称、当前阶段、Lead Score、意向等级、推荐动作
+6. 如果失败，返回失败命令和完整报错
 ```
 
 写入成功后，打开飞书多维表格确认两张表里都有记录。
 
 ---
 
-## 8. 一键全链路（可选）
+## 8. 多轮推进验证（可选，发给龙虾）
 
-前面第 4–7 步把接入、理解、判断、沉淀拆开逐步验证。这一步用一条命令把整条链路串起来，从飞书原始 JSON 一步到底，直接写入飞书两张表。
+同一客户跑第二份后续阶段文档，观察客户信息表如何"弱值不覆盖强值"地更新画像、商机快照表如何追加新阶段。
 
-> **⚠️ 避免重复记录**：客户信息表按客户 ID 做 upsert，重复跑只会更新同一行；但 商机快照表是 append，每跑一次追加一条。如果前面第 7 步已经真实写入过，建议换一份样本（例如 `guojiadianwang_pv_grid_need_confirmation_rich.json`），避免同一客户出现重复快照。
+> **⚠️ 避免重复记录**：客户信息表按客户 ID 做 upsert，重复跑只会更新同一行；但商机快照表是 append，每跑一份文档追加一条。这正是用来展示推进轨迹的——但同一份文档不要重复跑。
 
 ```text
-请用 CRM-Assistant 一键跑完全链路：从飞书原始 JSON 生成 CRM 结果，并写入飞书多维表格。
+请用 CRM-Assistant 再处理一份同一客户的后续阶段会议纪要，并真实写入飞书。
 
 项目目录：~/projects/agentic-ai/CRM-Assistant
 
-请使用样本 assets/feishu_raw/guojiadianwang_pv_grid_need_confirmation_rich.json 和环境变量文件 .env.local。飞书写表请使用用户权限（user identity），不要使用应用权限。一次性完成：提取 context、生成 transcript、生成 CRM 结果、写入飞书两张表。输出目录请放到 runtime/lab15_full/guojiadianwang。
+请使用 assets/meeting_docs/中国平安龙虾盒子方案沟通会.docx 和项目根目录的 .env.local，执行 ingest-docx-to-bitable，加上 --sync-feishu。飞书写表继续使用用户权限（user identity）。输出结果请保存到 runtime/lab15_feishu/write_round2。
 
 完成后告诉我：
-1. build_result_path 是否生成
-2. crm_packet_path 是否生成
-3. sync_result_path 是否生成
-4. 客户信息是新增还是更新
-5. 商机快照是否追加成功
+1. 是否写入成功
+2. 客户信息是否复用了已有客户并更新画像（是更新而非新增）
+3. 商机快照是否在同一商机 ID 下追加了新阶段快照
+4. 当前阶段、Lead Score、推荐动作和第一份文档相比有什么变化
 ```
 
-这一步等价于把前面三条命令串联执行：
-
-```text
-飞书原始 JSON
-  → build-context-from-feishu    （接入：标准化输入）
-  → process-transcript           （理解 + 判断：结构化产出）
-  → sync-feishu-bitable          （沉淀：写入飞书表）
-```
+回到飞书表观察：客户信息更新了画像、商机快照体现了"需求确认 → 方案沟通"的阶段推进。
 
 ---
 
@@ -253,8 +259,8 @@ CRM_ASSISTANT_ROOT=~/projects/agentic-ai/CRM-Assistant
 ### 9.4 验证 Skill 是否生效（发给龙虾）
 
 ```text
-请帮我处理这份飞书会议记录，生成 CRM 结构化结果并写入飞书表：
-~/projects/agentic-ai/CRM-Assistant/assets/feishu_raw/guojiadianwang_pv_grid_need_confirmation_rich.json
+请帮我处理这份飞书会议纪要，生成 CRM 结构化结果并用用户权限写入飞书表：
+~/projects/agentic-ai/CRM-Assistant/assets/meeting_docs/国家电网分布式光伏并网资料协同需求确认会.docx
 ```
 
 > 如果 Skill 注册成功，龙虾应自动触发 `crm-assistant`，走完接入 → 理解 → 判断 → 沉淀的完整链路。飞书两张表写入成功即完成第 9 步。
@@ -265,13 +271,14 @@ CRM_ASSISTANT_ROOT=~/projects/agentic-ai/CRM-Assistant
 
 - [ ] 龙虾 git pull 并初始化 CRM-Assistant 成功
 - [ ] `python scripts/crm_assistant.py --help` 能正常输出
+- [ ] `assets/meeting_docs` 中存在 .docx 测试会议纪要
 - [ ] 飞书 Base 已创建，包含客户信息和商机快照两张表
 - [ ] `.env.local` 已配置真实 FEISHU_APP_ID / FEISHU_APP_SECRET / FEISHU_BITABLE_APP_TOKEN / table_id
 - [ ] 本地样本生成 `context.json`、`transcript.txt`、`crm_packet.json`
-- [ ] 本地样本生成 `customer_table_row.json` 和 `opportunity_snapshot_row.json`
+- [ ] 本地样本生成 `customer_table_rows.json` 和 `opportunity_snapshot_row.json`
 - [ ] `inspect-feishu-bitable` 能读到两张表字段
-- [ ] `sync-feishu-bitable --dry-run` 生成写表计划但不真实写入
-- [ ] 去掉 `--dry-run` 后真实写入成功
+- [ ] `ingest-docx-to-bitable --sync-feishu --dry-run` 生成写表计划但不真实写入
+- [ ] 去掉 `--dry-run` 后通过用户权限真实写入成功
 - [ ] 飞书客户信息表能看到客户画像记录
 - [ ] 飞书商机快照表能看到商机推进快照记录
 - [ ] Skill 已注册到 `~/.openclaw/workspace/skills/`
@@ -285,13 +292,14 @@ CRM_ASSISTANT_ROOT=~/projects/agentic-ai/CRM-Assistant
 |---|---|---|
 | `Missing Feishu app token` | 没加载 .env.local 或变量名不对 | 「请检查 .env.local 里是否有 FEISHU_BITABLE_APP_TOKEN」 |
 | `Missing customer table id` | 客户信息表 ID 缺失 | 「请检查 .env.local 里是否有 FEISHU_CUSTOMER_TABLE_ID」 |
-| `Missing opportunity table id` | 商机快照表 ID 缺失 | 「请检查 .env.local 里是否有 FEISHU_OPPORTUNITY_TABLE_ID」 |
+| `Missing opportunity snapshot table id` | 商机快照表 ID 缺失 | 「请检查 .env.local 里是否有 FEISHU_OPPORTUNITY_TABLE_ID」 |
 | `tenant_access_token missing` | App ID / App Secret 错误或应用未发布 | 「请重新核对 .env.local 里的 FEISHU_APP_ID / FEISHU_APP_SECRET」 |
-| `Feishu API failed` | 权限、表 ID 或字段类型不匹配 | 「请返回完整报错，并重新执行 inspect-feishu-bitable」 |
 | `403 Forbidden` / 写表失败 | 使用了应用权限，应用身份无写权限 | 「飞书写表请使用用户权限（user identity），不要使用应用权限」 |
+| `Feishu API failed` | 权限、表 ID 或字段类型不匹配 | 「请返回完整报错，并重新执行 inspect-feishu-bitable」 |
 | 字段缺失 | 建表时字段名和脚本字段不一致 | 「请按实验手册第 1 步补齐缺失字段，字段名保持完全一致」 |
-| 只生成 JSON 没写表 | 跑的是本地处理命令或带了 `--dry-run` | 「请确认执行的是 sync-feishu-bitable 且没有 --dry-run」 |
-| 客户信息被覆盖了旧画像 | 当前输入有弱值或历史值保护未生效 | 「请返回 crm_packet.json 和 feishu_sync_result.json 里 customer_table_row 的内容」 |
+| 找不到 .docx | 没拉到最新仓库，或路径不对 | 「请 git pull，并列出 assets/meeting_docs 下的文件」 |
+| 只生成 JSON 没写表 | 没加 `--sync-feishu` 或带了 `--dry-run` | 「请确认执行的是 ingest-docx-to-bitable 且带了 --sync-feishu、没有 --dry-run」 |
+| 客户信息被覆盖了旧画像 | 当前输入有弱值或历史值保护未生效 | 「请返回 crm_packet.json 和 feishu_sync_result.json 里 customer_table_rows 的内容」 |
 | Skill 注册后龙虾没触发 | Skill 目录没复制到正确位置 | 「请确认 ~/.openclaw/workspace/skills/crm-assistant/SKILL.md 存在」 |
 | 找不到项目目录 | 环境变量未配置 | 「请确认 ~/.openclaw/.env 中 CRM_ASSISTANT_ROOT 已设置」 |
 

@@ -2,14 +2,14 @@
 
 > 配套课程：AI 业务流架构师 · 第 15 节《实战：让每一场高价值会议，自动沉淀为可经营的 CRM 资产》
 
-把会议转录文本或飞书会议原始数据，经过四段式架构（接入 → 理解 → 判断 → 沉淀），转换成客户画像、商机推进判断、跟进任务与会前简报，最终写入飞书多维表格两张表。
+把飞书会议纪要（Word/DOCX）经过四段式架构（接入 → 理解 → 判断 → 沉淀），转换成客户画像、商机推进判断、跟进任务与会前简报，最终写入飞书多维表格两张表。
 
 ```
-会议原始数据 / 转录文本
-  → 接入：build-context-from-feishu 拆成 context.json + transcript.txt
+飞书会议纪要（.docx）
+  → 接入：从 Word 文档解析出 context.json + transcript.txt
   → 理解：从对话里提取需求、顾虑、MBTI、沟通风格等经营信号
   → 判断：生成阶段、Lead Score、意向等级、推荐动作
-  → 沉淀：upsert 客户信息表 + append 商机推进快照表
+  → 沉淀：upsert 客户信息表 + append 商机快照表
 ```
 
 ## 与课程的关系
@@ -26,8 +26,8 @@
 
 | 条件 | 说明 |
 |---|---|
-| Python 3.10+ | 无第三方依赖，标准库即可运行 |
-| 飞书开发者应用 | 有 App ID / App Secret，已开通多维表格相关权限 |
+| Python 3.10+ | 无第三方依赖，标准库即可运行（DOCX 解析用 `zipfile` + `xml`） |
+| 飞书开发者应用 | 有 App ID / App Secret，已开通多维表格相关权限（读权限即可，写表走用户权限） |
 | 飞书多维表格 | 包含客户信息和商机快照两张表 |
 
 ## 快速开始
@@ -40,21 +40,16 @@ cd CRM-Assistant
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 3. 安装依赖
+# 3. 安装依赖（标准库项目，requirements 为空占位）
 pip install -r requirements.txt
 
-# 4. 本地验证（不需要飞书配置）
-python scripts/crm_assistant.py build-context-from-feishu \
-  --raw-input-path assets/feishu_raw/pingan_longxiahezi_need_confirmation.json \
-  --output-dir runtime/quick_start
-
-python scripts/crm_assistant.py process-transcript \
-  --transcript-path runtime/quick_start/transcript.txt \
-  --context-path runtime/quick_start/context.json \
+# 4. 本地验证（不需要飞书配置）：把仓库自带的 Word 会议纪要跑成 CRM 结构化结果
+python scripts/crm_assistant.py ingest-docx-to-bitable \
+  --docx-path assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx \
   --output-dir runtime/quick_start
 ```
 
-跑通本地验证即可掌握本节 80% 的内容。真实写表需要飞书配置，详见下方"飞书写表"章节或 [lesson15-lab.md](lesson15-lab.md)。
+不带 `--sync-feishu` 时只做本地结构化处理，不会写飞书。跑通即可掌握本节 80% 的内容。真实写表需要飞书配置，详见下方"飞书写表"章节或 [lesson15-lab.md](lesson15-lab.md)。
 
 环境变量模板：
 
@@ -68,22 +63,24 @@ set -a && source .env.local && set +a
 
 ### 第一段 · 接入：标准化输入
 
-把飞书 raw JSON 拆成两个文件，让下游所有处理吃同一种"标准化输入"：
+把飞书会议纪要 Word 文档解析成两个文件，让下游所有处理吃同一种"标准化输入"：
 
-- `context.json`（14 个固定字段）：客户 ID、商机 ID、负责人、会议时间、销售区域……
+- `context.json`：客户 ID、商机 ID、负责人、会议时间、销售区域……
 - `transcript.txt`（纯文本）：整段会议对话
 
 ```bash
-python scripts/crm_assistant.py build-context-from-feishu \
-  --raw-input-path assets/feishu_raw/your_feishu_raw.json \
+python scripts/crm_assistant.py build-context-from-feishu-doc \
+  --docx-path assets/meeting_docs/your_meeting.docx \
   --output-dir runtime/your_case
 ```
+
+> 文档纪要要求三段结构：**一、会议基本信息 / 二、参会人员 / 三、文字记录**。仓库自带样本即按此格式组织。除了 Word 文档，项目也保留了从飞书会议原始 JSON（`build-context-from-feishu`）和飞书云文档正文（`build-context-from-feishu-doc --doc-markdown-path`）接入的入口。
 
 ### 第二段 · 理解：经营信号提取
 
 从对话原文中提炼结构化经营信号：
 
-- 客户画像：MBTI、是否单身、沟通风格
+- 客户画像：MBTI、是否单身、职务、沟通风格
 - 风险顾虑：价格敏感、交付风险、合规与数据安全
 - 决策角色：客户本人拍板？配偶参与？技术决策人引入？
 
@@ -103,24 +100,24 @@ python scripts/crm_assistant.py build-context-from-feishu \
 
 | 飞书表 | 写入方式 | 回答的问题 |
 |---|---|---|
-| 客户信息 | upsert（同 ID 更新） | 这个客户是谁？该怎么跟他沟通？ |
-| 商机快照 | append（每轮追加） | 这单现在在哪？下一步该怎么推？ |
+| 客户信息（长期画像） | upsert（同 ID 更新） | 这个客户是谁？该怎么跟他沟通？ |
+| 商机快照（每轮追加） | append（每轮追加） | 这单现在在哪？下一步该怎么推？ |
 
 ## 核心模块
 
 | 模块 | 职责 |
 |---|---|
-| `scripts/crm_assistant.py` | Python CLI 主入口，12 个子命令覆盖完整链路 |
+| `scripts/crm_assistant.py` | Python CLI 主入口，覆盖接入/理解/判断/沉淀完整链路 |
 | `references/llm_prompt_template.md` | Prompt 模板：每个字段的判断标准、证据来源、边界条件 |
 | `references/llm_output_schema.md` | Schema 约束：输出 JSON 结构、字段名、枚举值、类型 |
 | `assets/few_shot/` | few-shot 示范：覆盖 MBTI、是否单身、风险顾虑等难点字段 |
-| `assets/feishu_raw/` | 飞书原始会议样本（含中国平安 5 轮推进完整数据） |
+| `assets/meeting_docs/` | 飞书会议纪要 Word 样本（含中国平安龙虾盒子 5 轮推进完整数据） |
 | `references/feishu-bitable-mapping.md` | 飞书两表字段映射与写入规则 |
 | `skills/crm-assistant/SKILL.md` | OpenClaw Skill 入口契约 |
 
 ## 8 类结构化产出
 
-一次处理生成 8 个文件，每一类对应一个具体动作：
+一次处理生成 8 类文件，每一类对应一个具体动作：
 
 | 产出文件 | 回答什么 |
 |---|---|
@@ -129,8 +126,8 @@ python scripts/crm_assistant.py build-context-from-feishu \
 | `opportunity_update.json` | 这单推进到哪一步了 |
 | `follow_up_task.json` | 下一步该做什么 |
 | `pre_meeting_brief.json` | 下次开会前看什么 |
-| `customer_table_row.json` | 直接写进飞书客户表 |
-| `opportunity_snapshot_row.json` | 直接写进飞书商机表 |
+| `customer_table_rows.json` | 直接写进飞书客户信息表 |
+| `opportunity_snapshot_row.json` | 直接写进飞书商机快照表 |
 | `crm_packet.json` | 以上全部打包 |
 
 ## 历史强值保护
@@ -138,19 +135,34 @@ python scripts/crm_assistant.py build-context-from-feishu \
 多轮经营的核心难题：本轮没提到 ≠ 不存在。
 
 ```python
-# 本轮弱值 + 历史强值 → 保留历史
+# 本轮弱值 + 历史强值 → 保留历史；沟通风格/风险顾虑则合并去重
 def merge_row_preserving_existing_values(current_row, existing_fields):
     merged = OrderedDict()
+    preserved_fields = []
+    merge_fields = {"沟通风格", "风险顾虑"}
     for field_name, current_value in current_row.items():
-        existing_value = existing_fields.get(field_name)
-        if is_weak_field_value(current_value) and not is_weak_field_value(existing_value):
-            merged[field_name] = existing_value
+        existing_value = (existing_fields or {}).get(field_name)
+        if field_name in merge_fields and not is_weak(existing_value) and not is_weak(current_value):
+            merged[field_name] = merge_multi_value_text(current_value, existing_value)  # 合并去重
+        elif is_weak(current_value) and not is_weak(existing_value):
+            merged[field_name] = existing_value                                          # 保留历史强值
+            preserved_fields.append(field_name)
         else:
             merged[field_name] = current_value
-    return merged
+    return merged, preserved_fields
 ```
 
-弱值包括：`None`、空字符串、`"未明确"`、`"暂无"`、`"未知"`、`"待确认"`、`"待补充"`、空列表/字典。
+弱值包括：`None`、空字符串、`"未明确"`、`"暂无"`、`"未知"`、`"待确认"`、`"待补充"`、空列表/字典。`沟通风格`、`风险顾虑` 两个字段额外采用"保留旧值 + 补充新值 + 去重"的合并策略。
+
+## 商机 ID 继承规则
+
+同一客户、同一项目、只是推进到不同阶段时，应**沿用同一个商机 ID**，在商机快照表追加新阶段快照；只有在以下情况才生成新商机 ID：
+
+- 同一客户下的全新项目
+- 不同预算包 / 不同采购线
+- 已明确是另一条独立需求线
+
+简记：**阶段变化 → 同一商机 ID，不同快照；新项目 → 新商机 ID。**
 
 ## 多轮客户推进
 
@@ -158,23 +170,11 @@ def merge_row_preserving_existing_values(current_row, existing_fields):
 
 ```bash
 python scripts/crm_assistant.py run-customer-journey \
-  --manifest-path assets/feishu_raw/your_journey_manifest.json \
+  --manifest-path your_journey_manifest.json \
   --output-dir runtime/your_case_journey
 ```
 
-产出 `journey_summary.json`，包含完整推进故事：
-
-```json
-{
-  "stage_path": ["需求确认", "方案沟通", "推进中", "待成交", "已成交"],
-  "latest_lead_score": 97,
-  "progression_notes": [
-    "r1 需求确认 99", "r2 持平 99",
-    "r3 下降 -4 = 95", "r4 下降 -20 = 75",
-    "r5 提升 +22 = 97"
-  ]
-}
-```
+仓库自带的中国平安龙虾盒子样本提供了完整 5 轮推进（需求梳理 → 方案沟通 → 内部推进 → 签约前确认 → 项目签约完成），可用来演示阶段与 Lead Score 的变化轨迹。
 
 ## 飞书配置
 
@@ -188,21 +188,11 @@ cp .env.example .env.local
 set -a && source .env.local && set +a
 ```
 
-也可以使用 `feishu_config.json`（适合龙虾对话模式）：
-
-```json
-{
-  "app_id": "cli_xxxxxxxx",
-  "app_secret": "xxxxxxxx",
-  "app_token": "xxxxxxxx",
-  "customer_table_id": "tblxxxxxxxx",
-  "opportunity_snapshot_table_id": "tblxxxxxxxx"
-}
-```
-
-> 两种方式不要混用。`.env.local` 和 `feishu_config.json` 都已在 `.gitignore` 中，不会被误提交。
+> `.env.local` 和 `feishu_config.json` 都已在 `.gitignore` 中，不会被误提交。两种方式不要混用。
 
 ## 飞书写表
+
+> ⚠️ **飞书写表必须使用用户权限（user identity）。** 应用权限（app/bot identity）通常只有读权限，写操作会返回 `403 Forbidden`。应用凭证主要用于定位和检查 Base / 表结构。
 
 ### 检查表结构
 
@@ -217,37 +207,30 @@ python scripts/crm_assistant.py inspect-feishu-bitable \
 ### dry-run 模拟写表
 
 ```bash
-python scripts/crm_assistant.py sync-feishu-bitable \
-  --crm-packet-path runtime/your_case/crm_packet.json \
+python scripts/crm_assistant.py ingest-docx-to-bitable \
+  --docx-path assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx \
   --output-dir runtime/dry_run \
-  --dry-run
+  --sync-feishu --dry-run
 ```
 
 ### 真实写入
 
 ```bash
-python scripts/crm_assistant.py sync-feishu-bitable \
-  --crm-packet-path runtime/your_case/crm_packet.json \
-  --output-dir runtime/write_once
+python scripts/crm_assistant.py ingest-docx-to-bitable \
+  --docx-path assets/meeting_docs/中国平安龙虾盒子需求梳理会.docx \
+  --output-dir runtime/write_once \
+  --sync-feishu
 ```
 
-### 一条命令完整链路
-
-```bash
-python scripts/crm_assistant.py ingest-feishu-raw-to-bitable \
-  --raw-input-path assets/feishu_raw/your_feishu_raw.json \
-  --output-dir runtime/ingest/your_case
-```
-
-自动完成：提取 context → 生成 transcript → 生成 CRM 结果 → upsert 客户表 → append 商机表。
+> 不带 `--sync-feishu` 只做本地结构化；带 `--sync-feishu --dry-run` 生成写表计划但不真写；带 `--sync-feishu` 不带 `--dry-run` 才真实写入。
 
 ## 飞书表字段
 
-### 客户信息表
+### 客户信息表（长期画像）
 
-客户ID、客户名称、客户公司、行业、MBTI、是否单身、沟通风格、成交阻力、价格敏感程度、风险顾虑、客户画像摘要、客户负责人、最后更新时间、数据来源
+客户ID、客户名称、客户公司、行业、职务、MBTI、是否单身、沟通风格、成交阻力、价格敏感程度、风险顾虑、客户画像摘要、客户负责人、最后更新时间、数据来源
 
-### 商机快照表
+### 商机快照表（商机推进快照）
 
 商机ID、客户ID、客户名称、客户公司、机会名称、商机描述、当前阶段、Lead Score、意向等级、高净值优先、销售区域、业务价值、推荐动作、最新进展、下次跟进时间、最近会议时间、商机负责人、数据来源
 
@@ -257,7 +240,7 @@ python scripts/crm_assistant.py ingest-feishu-raw-to-bitable \
 
 1. `context.json` 和 `transcript.txt` 已生成
 2. `crm_packet.json` 包含 8 类结构化结果
-3. `customer_table_row.json` 弱值已被历史强值保护
+3. `customer_table_rows.json` 弱值已被历史强值保护
 4. 飞书客户信息表有客户画像记录（upsert 成功）
 5. 飞书商机快照表有商机推进快照（append 成功）
 
@@ -268,14 +251,14 @@ CRM-Assistant/
 ├── agents/
 │   └── openai.yaml                              # Agent 配置
 ├── assets/
-│   ├── feishu_raw/                              # 飞书原始会议样本
-│   │   ├── pingan_longxiahezi_need_confirmation.json
-│   │   ├── pingan_longxiahezi_solution_communication.json
-│   │   ├── pingan_longxiahezi_in_progress.json
-│   │   ├── pingan_longxiahezi_pending_close.json
-│   │   ├── pingan_longxiahezi_closed_won.json
-│   │   ├── guojiadianwang_pv_grid_need_confirmation_rich.json
-│   │   └── shanghai_baowu_finetune_observer_low_intent.json
+│   ├── meeting_docs/                            # 飞书会议纪要 Word 样本
+│   │   ├── 中国平安龙虾盒子需求梳理会.docx
+│   │   ├── 中国平安龙虾盒子方案沟通会.docx
+│   │   ├── 中国平安龙虾盒子内部推进会.docx
+│   │   ├── 中国平安龙虾盒子签约前确认会.docx
+│   │   ├── 中国平安龙虾盒子项目签约完成与启动确认会.docx
+│   │   ├── 国家电网分布式光伏并网资料协同需求确认会.docx
+│   │   └── 上海宝武钢铁集团企业大模型微调服务初步了解会.docx
 │   └── few_shot/                                # few-shot 示例
 │       ├── zhongguoyidong_ops_rich.json
 │       └── ningdeshidai_service_rich.json
