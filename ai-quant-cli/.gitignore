@@ -1,0 +1,21 @@
+# --- 年报 PDF：默认不入库，但附两份样例年报 ---
+data/*.pdf
+data/*.PDF
+!data/宁德时代2025年年度报告.pdf
+!data/比亚迪2025年年度报告.pdf
+
+# --- 产物目录：不入库 ---
+build/
+reports/
+
+# --- 解析产物：视为生成产物，不入库（只留 .gitkeep 占位）---
+data/parsed/*
+!data/parsed/.gitkeep
+
+# --- Python ---
+.venv/
+__pycache__/
+*.pyc
+
+# --- 编辑器/系统 ---
+.DS_Store

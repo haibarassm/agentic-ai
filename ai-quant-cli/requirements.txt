@@ -1,0 +1,11 @@
+# L1 解析（阶段 2 现场定型；pdfplumber 优先，必要时退到 PyMuPDF）
+pdfplumber
+# PyMuPDF
+
+# L2 出图（阶段 4）
+matplotlib
+
+# L3 报告（阶段 5）
+Jinja2
+
+# 铁律：不引入任何 LLM SDK / 在线服务。
