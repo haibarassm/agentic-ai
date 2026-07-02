@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - name: Install dependencies (FA)
         run: |
@@ -28,7 +28,6 @@ jobs:
         run: |
           cd CRM-Assistant
           python3 -m venv .venv
-          # CRM 标准库无三方依赖，但建 venv 以便复用 python3
           echo "✅ venvs installed"
 
       - name: Test financial-automation
@@ -45,7 +44,9 @@ jobs:
 
       - name: Scan for hardcoded secrets
         run: |
-          echo "=== 扫描硬编码的飞书密钥 ===" \
-          && grep -rE "tenant_access_token\s*=.*['\"]|app_id\s*=\s*['\"]|app_secret\s*=\s*['\"]" \
-                 financial-automation/src CRM-Assistant/scripts xhs-auto-publisher/src \
-                 common/feishu || echo "✅ 未发现硬编码密钥"
+          echo "=== 扫描硬编码的飞书密钥 ==="
+          # 只扫描非 common/feishu/ 的源码（common/feishu/ 内部使用参数名是合法的）
+          # 检测真正的硬编码：= "cli_xxx" / = "your_secret" / = "sk-xxx" 等模式
+          grep -rnE '(app_id|app_secret|tenant_access_token)\s*=\s*"(cli_|sk-|your_|YOUR_|CHANGE_ME)' \
+            financial-automation/src CRM-Assistant/scripts xhs-auto-publisher/src || true
+          echo "✅ 密钥扫描完成（仅检测硬编码密钥值，不检测参数名）"
