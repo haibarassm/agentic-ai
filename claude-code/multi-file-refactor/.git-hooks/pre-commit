@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# pre-commit hook — Lesson 17 工程化护栏第一道
+#
+# 功能：拒绝提交包含以下模式的代码（只检查 multi-file-refactor/ 目录）：
+#   1. 绕过 FeishuClient 自拼飞书 API URL（urlopen / request.Request 直接拼 open.feishu.cn）
+#   2. 绕过 FeishuClient 自拼 tenant_access_token / app_id / app_secret
+#      （检测 .get("tenant_access_token") 调用，且不在 common/feishu/*.py 中）
+#
+# 合法例外（不检查这些文件）：
+#   - common/feishu/ 内部实现（统一管理端点、异常、transport）
+#   - .git-hooks/（hook 自身）
+#   - .github/（CI 配置）
+#   - *.md（文档）
+#   - test_*.py（单测，引用端点是正常的）
+#
+# 安装：cp .git-hooks/pre-commit .git/hooks && chmod +x .git/hooks/pre-commit
+
+set -euo pipefail
+
+WORK_DIR="claude-code/multi-file-refactor"
+
+# 只检查 multi-file-refactor 下的 Python 修改文件
+ALL_PY_FILES=$(git diff --cached --name-only -- "$WORK_DIR" | grep '\.py$' || true)
+if [ -z "$ALL_PY_FILES" ]; then
+    echo "✅ pre-commit pass: no Python changes in $WORK_DIR"
+    exit 0
+fi
+
+# 过滤出"需要检查的文件"：排除 common/feishu/、.git-hooks/、.github/、test_*.py
+CHECK_FILES=""
+while IFS= read -r f; do
+    case "$f" in
+        *common/feishu/*) continue ;;   # 共享包内部实现
+        *\.git-hooks/*)   continue ;;   # hook 自身
+        *\.github/*)      continue ;;   # CI 配置
+        test_*)           continue ;;   # 单测文件
+    esac
+    CHECK_FILES="$CHECK_FILES
+$f"
+done <<< "$ALL_PY_FILES"
+
+if [ -z "$(echo "$CHECK_FILES" | tr -d '[:space:]')" ]; then
+    echo "✅ pre-commit pass: no files to check in $WORK_DIR"
+    exit 0
+fi
+
+# ---------- 检查 1：绕过 FeishuClient 自拼飞书 API URL ----------
+# 只拦"直接拼 URL 发起 HTTP 请求"的代码模式：
+#   urlopen("https://open.feishu.cn 或 urlopen(f"https://open.feishu.cn
+#   request.Request("https://open.feishu.cn 或 request.Request(f"https://open.feishu.cn
+# 不拦：常量赋值（= "https://open.feishu.cn"）、文档引用
+BLOCKED=0
+for f in $CHECK_FILES; do
+    VIOLATION=$(git diff --cached -- "$f" | grep -iE '(urlopen|request\.Request)\s*\(\s*(f?["'"'"']\s*"?\s*https://open\.feishu\.cn|f"https://open\.feishu\.cn)' || true)
+    if [ -n "$VIOLATION" ]; then
+        if [ $BLOCKED -eq 0 ]; then
+            echo "🚫 pre-commit blocked: 绕过 FeishuClient 自拼飞书 API URL"
+            echo "  请使用 FeishuClient（endpoint 参数）统一发起飞书请求。"
+            echo ""
+            BLOCKED=1
+        fi
+        echo "  - $f:"
+        echo "$VIOLATION" | sed 's/^/    /'
+    fi
+done
+if [ $BLOCKED -eq 1 ]; then
+    exit 1
+fi
+
+# ---------- 检查 2：绕过 FeishuClient 自拼 token ----------
+BLOCKED=0
+for f in $CHECK_FILES; do
+    VIOLATION=$(git diff --cached -- "$f" | grep '\.get("tenant_access_token")' || true)
+    if [ -n "$VIOLATION" ]; then
+        if [ $BLOCKED -eq 0 ]; then
+            echo "🚫 pre-commit blocked: 绕过 FeishuClient 直接拼接 token"
+            echo "  请使用 FeishuClient.get_tenant_access_token() 或移除自拼代码。"
+            echo ""
+            BLOCKED=1
+        fi
+        echo "  - $f:"
+        echo "$VIOLATION" | sed 's/^/    /'
+    fi
+done
+if [ $BLOCKED -eq 1 ]; then
+    exit 1
+fi
+
+echo "✅ pre-commit pass: $WORK_DIR 变更符合飞书客户端规范"

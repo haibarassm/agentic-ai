@@ -1,39 +1,25 @@
+"""共享飞书客户端包（common.feishu）。
+
+ Lesson 17 抽取的共享层，供 financial-automation、CRM-Assistant、xhs-auto-publisher 复用。
+
+分层：
+- ``errors``：统一异常树（FeishuError → Auth / HTTP / API）
+- ``http``：传输层（post_json / post_multipart / request_json，统一超时与错误）
+- ``auth``：tenant_access_token
+- ``bitable``：多维表格 OpenAPI（list / batch_create / batch_update / 媒体上传）
+- ``im``：即时消息（上传图片 / 发图片 / 发文本）——为 xhs 新增
+- ``client``：FeishuClient 门面
+"""
+
 from __future__ import annotations
 
-from .errors import (
-    FeishuApiError,
-    FeishuAuthError,
-    BitableSyncError,
-    BitableAttachmentUploadError,
-)
-from .auth import get_tenant_access_token, load_user_access_token
-from .http import post_json, post_multipart
-from .bitable import (
-    pick_reusable_record_id,
-    choose_write_action,
-    coerce_field_value,
-    coerce_row,
-)
-from .client import (
-    BitableAttachmentUploadRequest,
-    BitableAttachmentUploadResult,
-    FeishuClient,
-)
+from .client import FeishuClient
+from .errors import FeishuAPIError, FeishuAuthError, FeishuError, FeishuHTTPError
 
 __all__ = [
-    "FeishuApiError",
-    "FeishuAuthError",
-    "BitableSyncError",
-    "BitableAttachmentUploadError",
-    "get_tenant_access_token",
-    "load_user_access_token",
-    "post_json",
-    "post_multipart",
-    "pick_reusable_record_id",
-    "choose_write_action",
-    "coerce_field_value",
-    "coerce_row",
-    "BitableAttachmentUploadRequest",
-    "BitableAttachmentUploadResult",
     "FeishuClient",
+    "FeishuError",
+    "FeishuAuthError",
+    "FeishuHTTPError",
+    "FeishuAPIError",
 ]

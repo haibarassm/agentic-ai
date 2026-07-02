@@ -1,0 +1,51 @@
+name: Lesson 17 CI Tests
+
+on:
+  push:
+    branches: [main, "lesson-*"]
+  pull_request:
+
+jobs:
+  test-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies (FA)
+        run: |
+          cd financial-automation
+          python3 -m venv .venv
+          ./.venv/bin/pip install -q -i https://pypi.tuna.tsinghua.edu.cn/simple \
+            || ./.venv/bin/pip install -q -i https://mirrors.aliyun.com/pypi/simple/
+
+      - name: Install dependencies (CRM)
+        run: |
+          cd CRM-Assistant
+          python3 -m venv .venv
+          # CRM 标准库无三方依赖，但建 venv 以便复用 python3
+          echo "✅ venvs installed"
+
+      - name: Test financial-automation
+        run: |
+          cd financial-automation && ./.venv/bin/python -m unittest tests.test_smoke
+
+      - name: Test CRM-Assistant
+        run: |
+          cd CRM-Assistant && ./.venv/bin/python scripts/crm_assistant.py run-merge-policy-tests
+
+      - name: Test common.feishu
+        run: |
+          python3 -m unittest common.tests.test_feishu_client
+
+      - name: Scan for hardcoded secrets
+        run: |
+          echo "=== 扫描硬编码的飞书密钥 ===" \
+          && grep -rE "tenant_access_token\s*=.*['\"]|app_id\s*=\s*['\"]|app_secret\s*=\s*['\"]" \
+                 financial-automation/src CRM-Assistant/scripts xhs-auto-publisher/src \
+                 common/feishu || echo "✅ 未发现硬编码密钥"

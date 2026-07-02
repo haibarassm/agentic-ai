@@ -1,26 +1,89 @@
+"""统一传输层。
+
+合并自：
+- financial-automation: ``_post_json`` / ``_post_multipart`` / ``_read_json_response``
+- CRM-Assistant: ``http_json_request`` / ``build_url``
+
+差异对齐：
+- 统一 60s 超时（CRM 原本无超时）。
+- 统一在业务码 code != 0 时抛 ``FeishuAPIError``（FA 原本如此；CRM 原本在各 wrapper 里检查）。
+- HTTP / 网络错误统一抛 ``FeishuHTTPError``。
+"""
+
 from __future__ import annotations
 
 import json
 import uuid
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlencode
 
-from .errors import FeishuApiError
+from .errors import FeishuAPIError, FeishuHTTPError
+
+DEFAULT_ENDPOINT = "https://open.feishu.cn"
+DEFAULT_TIMEOUT = 60
+
+
+def normalize_endpoint(endpoint: str | None) -> str:
+    return str(endpoint or DEFAULT_ENDPOINT).rstrip("/")
+
+
+def build_url(base: str, query: dict[str, Any] | None = None) -> str:
+    """给 URL 拼接 query string（None / 空 query 原样返回）。"""
+    if not query:
+        return base
+    return f"{base}?{urlencode(query)}"
+
+
+def _read_json(req: request.Request, *, timeout: int = DEFAULT_TIMEOUT) -> dict[str, Any]:
+    try:
+        with request.urlopen(req, timeout=timeout) as response:  # noqa: S310 - 受控的飞书域名
+            raw_body = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise FeishuHTTPError(f"Feishu API error {exc.code}: {body}") from exc
+    except error.URLError as exc:
+        raise FeishuHTTPError(f"Failed to reach Feishu API: {exc}") from exc
+
+    payload = json.loads(raw_body or "{}")
+    code = int(payload.get("code", 0) or 0)
+    if code != 0:
+        message = payload.get("msg") or payload.get("message") or "unknown error"
+        raise FeishuAPIError(f"Feishu API returned code {code}: {message}", code=code, payload=payload)
+    return payload
 
 
 def post_json(
     url: str,
     payload: dict[str, Any],
+    *,
     headers: dict[str, str] | None = None,
+    timeout: int = DEFAULT_TIMEOUT,
 ) -> dict[str, Any]:
-    """Send a POST request with JSON body and return parsed JSON response."""
     body = json.dumps(payload).encode("utf-8")
-    merged_headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        **(headers or {}),
-    }
+    merged_headers = {"Content-Type": "application/json; charset=utf-8", **(headers or {})}
     req = request.Request(url, data=body, headers=merged_headers, method="POST")
-    return _read_json_response(req)
+    return _read_json(req, timeout=timeout)
+
+
+def request_json(
+    url: str,
+    *,
+    method: str = "GET",
+    headers: dict[str, str] | None = None,
+    body: Any = None,
+    query: dict[str, Any] | None = None,
+    timeout: int = DEFAULT_TIMEOUT,
+) -> dict[str, Any]:
+    """通用 JSON 请求（CRM 风格：任意 method + query + body）。"""
+    target = build_url(url, query)
+    data: bytes | None = None
+    merged_headers = dict(headers or {})
+    if body is not None:
+        merged_headers.setdefault("Content-Type", "application/json; charset=utf-8")
+        data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    req = request.Request(target, data=data, headers=merged_headers, method=method)
+    return _read_json(req, timeout=timeout)
 
 
 def post_multipart(
@@ -32,16 +95,14 @@ def post_multipart(
     file_bytes: bytes,
     content_type: str,
     headers: dict[str, str] | None = None,
+    timeout: int = DEFAULT_TIMEOUT,
 ) -> dict[str, Any]:
-    """Send a POST request with multipart/form-data for file uploads."""
     boundary = f"----OpenClawBoundary{uuid.uuid4().hex}"
     body = bytearray()
 
     for key, value in fields.items():
         body.extend(f"--{boundary}\r\n".encode("utf-8"))
-        body.extend(
-            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8")
-        )
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8"))
         body.extend(str(value).encode("utf-8"))
         body.extend(b"\r\n")
 
@@ -62,23 +123,4 @@ def post_multipart(
         **(headers or {}),
     }
     req = request.Request(url, data=bytes(body), headers=merged_headers, method="POST")
-    return _read_json_response(req)
-
-
-def _read_json_response(req: request.Request) -> dict[str, Any]:
-    """Read and parse a JSON response from Feishu API, handling errors."""
-    try:
-        with request.urlopen(req, timeout=60) as response:
-            raw_body = response.read().decode("utf-8")
-    except error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise FeishuApiError(f"Feishu API error {exc.code}: {body}") from exc
-    except error.URLError as exc:
-        raise FeishuApiError(f"Failed to reach Feishu API: {exc}") from exc
-
-    payload = json.loads(raw_body or "{}")
-    code = int(payload.get("code", 0) or 0)
-    if code != 0:
-        message = payload.get("msg") or payload.get("message") or "unknown error"
-        raise FeishuApiError(f"Feishu API returned code {code}: {message}")
-    return payload
+    return _read_json(req, timeout=timeout)

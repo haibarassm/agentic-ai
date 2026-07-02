@@ -1,0 +1,11 @@
+.env
+.env.*
+*.pyc
+__pycache__/
+.venv/
+runtime/browser-profile/
+runtime/runs/
+runtime/lobster-notify/
+runtime/login_cache.json
+runtime/published_history.json
+*.log

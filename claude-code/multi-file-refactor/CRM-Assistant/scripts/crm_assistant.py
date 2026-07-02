@@ -5,22 +5,24 @@ import hashlib
 import json
 import os
 import re
+import sys
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib import parse
+from urllib import error, parse, request
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
-# Add parent common directory to path
-COMMON_DIR = Path(__file__).parent.parent.parent / "common"
-import sys
+# Lesson 17：复用共享 common.feishu 客户端（认证 / 端点 / Bitable / 容错）
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-sys.path.insert(0, str(COMMON_DIR))
+from common.feishu import auth as _feishu_auth  # noqa: E402
+from common.feishu import bitable as _feishu_bitable  # noqa: E402
 
-from feishu.client import FeishuClient
-from feishu.bitable import coerce_field_value, coerce_row
+FEISHU_ENDPOINT = "https://open.feishu.cn"
 
 
 VALID_INTENT_LEVELS = ["low", "medium", "high"]
@@ -884,17 +886,50 @@ def resolve_feishu_value(cli_value: str | None, config: dict[str, Any] | None, c
     return None
 
 
-def build_url(base_url: str, query: dict[str, Any] | None = None) -> str:
-    if not query:
-        return base_url
-    normalized: dict[str, Any] = {}
-    for key, value in query.items():
-        if value is None:
-            continue
-        normalized[key] = value
-    if not normalized:
-        return base_url
-    return f"{base_url}?{parse.urlencode(normalized)}"
+def get_feishu_tenant_access_token(app_id: str, app_secret: str) -> str:
+    return _feishu_auth.fetch_tenant_access_token(
+        endpoint=FEISHU_ENDPOINT, app_id=app_id, app_secret=app_secret
+    )
+
+
+def list_feishu_bitable_tables(app_token: str, tenant_access_token: str) -> list[dict[str, Any]]:
+    return _feishu_bitable.list_tables(
+        endpoint=FEISHU_ENDPOINT, token=tenant_access_token, app_token=app_token
+    )
+
+
+def list_feishu_bitable_fields(app_token: str, table_id: str, tenant_access_token: str) -> list[dict[str, Any]]:
+    return _feishu_bitable.list_fields(
+        endpoint=FEISHU_ENDPOINT, token=tenant_access_token, app_token=app_token, table_id=table_id
+    )
+
+
+def list_feishu_bitable_records(app_token: str, table_id: str, tenant_access_token: str) -> list[dict[str, Any]]:
+    return _feishu_bitable.list_records(
+        endpoint=FEISHU_ENDPOINT, token=tenant_access_token, app_token=app_token, table_id=table_id
+    )
+
+
+def batch_create_feishu_bitable_records(app_token: str, table_id: str, records: list[dict[str, Any]], tenant_access_token: str) -> dict[str, Any]:
+    return _feishu_bitable.batch_create_records(  # type: ignore[return-value]
+        endpoint=FEISHU_ENDPOINT,
+        token=tenant_access_token,
+        app_token=app_token,
+        table_id=table_id,
+        records=records,
+        return_raw=True,
+    )
+
+
+def batch_update_feishu_bitable_records(app_token: str, table_id: str, records: list[dict[str, Any]], tenant_access_token: str) -> dict[str, Any]:
+    return _feishu_bitable.batch_update_records(  # type: ignore[return-value]
+        endpoint=FEISHU_ENDPOINT,
+        token=tenant_access_token,
+        app_token=app_token,
+        table_id=table_id,
+        records=records,
+        return_raw=True,
+    )
 
 
 def map_row_fields(row: dict[str, Any], field_mapping: dict[str, Any] | None = None) -> OrderedDict[str, Any]:
@@ -909,6 +944,45 @@ def map_row_fields(row: dict[str, Any], field_mapping: dict[str, Any] | None = N
             continue
         mapped[target_text] = value
     return mapped
+
+
+def coerce_bitable_field_value(value: Any, field_meta: dict[str, Any] | None) -> Any:
+    if field_meta is None:
+        return value
+    field_type = int(get_object_value(field_meta, "type", 0) or 0)
+    if value is None:
+        return None
+    if field_type == 5:
+        if isinstance(value, (int, float)):
+            return int(value)
+        parsed = parse_datetime(value)
+        if parsed is not None:
+            return int(parsed.timestamp() * 1000)
+        return value
+    if field_type == 7:
+        if isinstance(value, bool):
+            return value
+        text = str(value).strip().lower()
+        return text in {"true", "1", "yes", "y", "是"}
+    if field_type == 2:
+        if isinstance(value, (int, float)):
+            return value
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return int(text) if re.fullmatch(r"-?\d+", text) else float(text)
+        except ValueError:
+            return value
+    return value
+
+
+def coerce_row_for_bitable(row: dict[str, Any], fields_meta: list[dict[str, Any]]) -> OrderedDict[str, Any]:
+    fields_by_name = {str(item.get("field_name") or "").strip(): item for item in fields_meta or []}
+    coerced = OrderedDict()
+    for field_name, value in row.items():
+        coerced[field_name] = coerce_bitable_field_value(value, fields_by_name.get(str(field_name).strip()))
+    return coerced
 
 
 def normalize_existing_bitable_fields(fields: dict[str, Any], fields_meta: list[dict[str, Any]]) -> OrderedDict[str, Any]:
@@ -1118,14 +1192,14 @@ def inspect_feishu_bitable(app_id: str | None, app_secret: str | None, app_token
     app_token = extract_bitable_app_token(resolved_app_token_source)
     if app_token is None:
         raise ValueError("Unable to parse Feishu bitable app token from --app-token-or-url, FEISHU_BITABLE_APP_TOKEN, or FEISHU_BITABLE_URL.")
-    client = FeishuClient(app_id=resolved_app_id, app_secret=resolved_app_secret)
-    tables = client.bitable_list_tables(app_token)
+    access_token = get_feishu_tenant_access_token(resolved_app_id, resolved_app_secret)
+    tables = list_feishu_bitable_tables(app_token, access_token)
     result: OrderedDict[str, Any] = OrderedDict([
         ("app_token", app_token),
         ("tables", tables),
     ])
     if table_id:
-        result["fields"] = client.bitable_list_fields(app_token, table_id)
+        result["fields"] = list_feishu_bitable_fields(app_token, table_id, access_token)
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     write_json(output / "feishu_bitable_inspect.json", result)
@@ -1209,10 +1283,10 @@ def sync_crm_packet_to_feishu(
     else:
         if not resolved_app_id or not resolved_app_secret:
             raise ValueError("Missing Feishu app credentials. Provide --app-id/--app-secret, config, or environment variables.")
-        client = FeishuClient(app_id=resolved_app_id, app_secret=resolved_app_secret)
-        customer_fields_meta = client.bitable_list_fields(resolved_app_token, str(resolved_customer_table_id))
-        opportunity_fields_meta = client.bitable_list_fields(resolved_app_token, str(resolved_opportunity_table_id))
-        existing_records = client.bitable_list_records(resolved_app_token, str(resolved_customer_table_id))
+        access_token = get_feishu_tenant_access_token(resolved_app_id, resolved_app_secret)
+        customer_fields_meta = list_feishu_bitable_fields(resolved_app_token, str(resolved_customer_table_id), access_token)
+        opportunity_fields_meta = list_feishu_bitable_fields(resolved_app_token, str(resolved_opportunity_table_id), access_token)
+        existing_records = list_feishu_bitable_records(resolved_app_token, str(resolved_customer_table_id), access_token)
         customer_actions: list[str] = []
         customer_responses: list[Any] = []
         customer_record_ids: list[str] = []
@@ -1223,12 +1297,13 @@ def sync_crm_packet_to_feishu(
             row_name = row.get("客户名称")
             row_company = row.get("客户公司")
             existing_record = find_feishu_record_by_customer_identity(existing_records, row_id, row_name, row_company)
-            coerced_row = coerce_row(row, customer_fields_meta)
+            coerced_row = coerce_row_for_bitable(row, customer_fields_meta)
             if existing_record is None:
-                customer_response = client.bitable_batch_create(
+                customer_response = batch_create_feishu_bitable_records(
                     resolved_app_token,
                     str(resolved_customer_table_id),
                     [{"fields": coerced_row}],
+                    access_token,
                 )
                 customer_actions.append("created")
                 customer_responses.append(customer_response)
@@ -1247,11 +1322,12 @@ def sync_crm_packet_to_feishu(
                     effective_customer_row.get("价格敏感程度"),
                     effective_customer_row.get("风险顾虑"),
                 )
-                effective_customer_row = coerce_row(effective_customer_row, customer_fields_meta)
-                customer_response = client.bitable_batch_update(
+                effective_customer_row = coerce_row_for_bitable(effective_customer_row, customer_fields_meta)
+                customer_response = batch_update_feishu_bitable_records(
                     resolved_app_token,
                     str(resolved_customer_table_id),
                     [{"record_id": existing_record["record_id"], "fields": effective_customer_row}],
+                    access_token,
                 )
                 customer_actions.append("updated")
                 customer_responses.append(customer_response)
@@ -1270,26 +1346,28 @@ def sync_crm_packet_to_feishu(
         report["customer_response"] = customer_responses[0] if len(customer_responses) == 1 else customer_responses
         report["customer_responses"] = customer_responses
 
-        existing_opportunity_records = client.bitable_list_records(resolved_app_token, str(resolved_opportunity_table_id))
+        existing_opportunity_records = list_feishu_bitable_records(resolved_app_token, str(resolved_opportunity_table_id), access_token)
         existing_opportunity_record = find_feishu_record_by_opportunity_identity(
             existing_opportunity_records,
             opportunity_row.get("商机ID"),
             opportunity_row.get("机会名称"),
             opportunity_row.get("客户公司"),
         )
-        coerced_opportunity_row = coerce_row(opportunity_row, opportunity_fields_meta)
+        coerced_opportunity_row = coerce_row_for_bitable(opportunity_row, opportunity_fields_meta)
         if existing_opportunity_record is None:
-            opportunity_response = client.bitable_batch_create(
+            opportunity_response = batch_create_feishu_bitable_records(
                 resolved_app_token,
                 str(resolved_opportunity_table_id),
                 [{"fields": coerced_opportunity_row}],
+                access_token,
             )
             report["opportunity_action"] = "created"
         else:
-            opportunity_response = client.bitable_batch_update(
+            opportunity_response = batch_update_feishu_bitable_records(
                 resolved_app_token,
                 str(resolved_opportunity_table_id),
                 [{"record_id": existing_opportunity_record["record_id"], "fields": coerced_opportunity_row}],
+                access_token,
             )
             report["opportunity_action"] = "updated"
             report["opportunity_record_id"] = existing_opportunity_record.get("record_id")
