@@ -14,8 +14,29 @@ Main areas:
 - `financial-automation/`: Python OCR/PDF extraction pipeline for invoices, validation, attachment upload, and Feishu Bitable write-back.
 - `morning-newspaper/`: Python multi-source news collection pipeline with three LLM editorial gates, static dashboard generation, and Feishu delivery workflow.
 - `CRM-Assistant/`: Python standard-library CLI that converts Feishu meeting raw data/transcripts into CRM assets and Feishu Bitable rows.
+- `claude-code/`: materials about Claude Code itself. `multi-file-refactor/` is the Lesson 17 sandbox that extracts a shared `FeishuClient` from snapshots of `financial-automation` + `CRM-Assistant`.
 
 No Cursor rules, `.cursorrules`, or GitHub Copilot instruction file are present at repository root.
+
+## Course chapter map
+
+This repo doubles as the teaching materials for the 20-chapter course《AI 业务流架构师》. Directories are **named by product/theme, not by lesson number** — the chapter binding lives in each dir's `lessonNN-lab.md`. Each runnable lesson is self-contained: `README.md` (overview) + `lessonNN-lab.md` (step-by-step student lab) + optional `setup.sh` (workspace bootstrap) + course artifacts.
+
+Chapter → directory:
+
+| Ch | Directory | Topic |
+| --- | --- | --- |
+| 5 | `openclaw-soul/` | SOUL.md / AGENTS.md persona engineering |
+| 6 | `openclaw-heartbeat/` | Heartbeat + Cron automation |
+| 9 | `openclaw-skills/` | SKILL.md authoring |
+| 12 | `xhs-auto-publisher/` | Xiaohongshu auto-publisher |
+| 13 | `financial-automation/` | Invoice OCR + Feishu Bitable |
+| 14 | `morning-newspaper/` | Multi-source news pipeline |
+| 15 | `CRM-Assistant/` | CRM meeting asset pipeline |
+| 16–17 | `claude-code/` | Claude Code deep practice; 17 = `multi-file-refactor/` |
+| 18–20 | (not yet landed) | AI Quant CLI; night self-heal; enterprise governance |
+
+When a request references "第N节" / "lesson N" / "L17" / "ch17", map it through this table.
 
 ## Common commands
 
@@ -185,6 +206,23 @@ openclaw devices approve <request-id>
 
 The infra docs assume OpenClaw Gateway remains bound to localhost and is exposed through Tailscale Serve. Do not change deployment examples to expose port `18789` publicly.
 
+### Claude Code lessons (`claude-code/multi-file-refactor/`)
+
+This is the Lesson 17 exercise workspace, not a new app. `setup.sh` snapshots `financial-automation` + `CRM-Assistant` into the workspace and runs the pre-refactor green test baseline:
+
+```bash
+bash claude-code/multi-file-refactor/setup.sh   # snapshot apps + venv + green baseline
+```
+
+Behavior-equivalence checks (run before and after the refactor):
+
+```bash
+cd claude-code/multi-file-refactor/financial-automation && python -m unittest tests.test_smoke
+cd claude-code/multi-file-refactor/CRM-Assistant && python scripts/crm_assistant.py run-merge-policy-tests
+```
+
+To reset the workspace from scratch: `rm -rf claude-code/multi-file-refactor/{financial-automation,CRM-Assistant,common}` then re-run `setup.sh`.
+
 ## Architecture notes
 
 ### Runtime and configuration pattern
@@ -255,3 +293,7 @@ The CRM merge logic preserves historical strong values when the current meeting 
 ### XHS publisher flow
 
 The publisher is a single-machine, single-browser, single-task sequence. Runtime evidence is written under `runtime/runs/<run_id>/`, with actions, normalized content, result JSON, screenshots, and DOM snapshots. Login handoff payloads are written under `runtime/lobster-notify/<run_id>/` for Feishu delivery by Lobster/OpenClaw.
+
+### Shared FeishuClient (Lesson 17) and the snapshot rule
+
+`claude-code/multi-file-refactor/` contains **frozen snapshots** of `financial-automation` and `CRM-Assistant`, copied in by `setup.sh`. The top-level `financial-automation/` and `CRM-Assistant/` directories are the **canonical source** — edit those for real fixes, and edit the snapshots only when doing the Lesson 17 refactor exercise. The two each independently implemented Feishu integration; the lesson extracts a shared `common/feishu/` package (`errors.py`, `auth.py`, `http.py`, `bitable.py`, `client.py`, `__init__.py`) so both import one client. Originals are never modified during the exercise — changes land on the snapshot copies and are guarded by pre-commit + CI.

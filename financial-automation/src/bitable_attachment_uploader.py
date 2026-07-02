@@ -43,7 +43,9 @@ def build_bitable_attachment_upload_request(
     access_token: str | None = None,
     endpoint: str = "https://open.feishu.cn",
 ) -> BitableAttachmentUploadRequest | None:
-    normalized_paths = [str(Path(path)) for path in (attachment_paths or []) if str(path).strip()]
+    # 用 as_posix() 而非 str(Path())：Windows 上 str() 会把分隔符改成反斜杠，
+    # as_posix() 强制正斜杠，使跨平台行为与 Linux 基线一致，同时保留规范化（折叠 ./..）。
+    normalized_paths = [Path(path).as_posix() for path in (attachment_paths or []) if str(path).strip()]
     if not normalized_paths:
         return None
     return BitableAttachmentUploadRequest(
