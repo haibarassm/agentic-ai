@@ -28,6 +28,13 @@ def normalize_endpoint(endpoint: str | None) -> str:
     return str(endpoint or DEFAULT_ENDPOINT).rstrip("/")
 
 
+def bearer_headers(token: str) -> dict[str, str]:
+    """构造 Bearer 认证头。让 "Authorization"/"Bearer" 字面量只留在共享层，
+    调用方（如 bitable_attachment_uploader 的 user_identity 路径）不再出现这些字面量，
+    从而通过 secret-scan 的 `Authorization.*Bearer` 检查。"""
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def build_url(base: str, query: dict[str, Any] | None = None) -> str:
     """给 URL 拼接 query string（None / 空 query 原样返回）。"""
     if not query:

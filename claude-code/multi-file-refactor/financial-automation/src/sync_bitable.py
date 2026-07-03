@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -364,6 +364,11 @@ def _build_attachment_index(paths: list[str]) -> dict[str, str]:
     return index
 
 
+# 中国时区（UTC+8）：飞书/课程是中文场景，日期按 UTC+8 解释，
+# 避免 CI（UTC）与本地（UTC+8）对 naive 日期的 timestamp 解释不一致。
+_CST = timezone(timedelta(hours=8))
+
+
 def _date_to_millis(value: Any) -> int | None:
     if not value:
         return None
@@ -373,6 +378,8 @@ def _date_to_millis(value: Any) -> int | None:
         dt = datetime.fromisoformat(str(value))
     except ValueError:
         return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_CST)
     return int(dt.timestamp() * 1000)
 
 
