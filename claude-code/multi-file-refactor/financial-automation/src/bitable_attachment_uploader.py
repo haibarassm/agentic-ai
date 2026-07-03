@@ -13,7 +13,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from common.feishu import FeishuError  # noqa: E402
-from common.feishu.http import post_multipart  # noqa: E402
+from common.feishu.http import bearer_headers, post_multipart  # noqa: E402
 
 
 class BitableAttachmentUploadError(RuntimeError):
@@ -151,7 +151,7 @@ def _upload_single_attachment(*, endpoint: str, app_token: str, access_token: st
         file_name=file_path.name,
         file_bytes=file_path.read_bytes(),
         content_type=mime_type,
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers=bearer_headers(access_token),
     )
     data = response.get("data", {}) if isinstance(response, dict) else {}
     file_token = str(data.get("file_token") or "")

@@ -5,16 +5,35 @@ import json
 import os
 import sys
 from pathlib import Path
-
-# Add parent common directory to path
-COMMON_DIR = Path(__file__).resolve().parents[2] / "common"
-sys.path.insert(0, str(COMMON_DIR))
-
-from feishu.http import post_json
+from urllib import error, request
 
 ROOT = Path(__file__).resolve().parents[1]
 TOKENS_PATH = ROOT / "runtime" / "oauth" / "feishu_user_token.json"
 FEISHU_ENDPOINT = os.environ.get("FEISHU_ENDPOINT", "https://open.feishu.cn").rstrip("/")
+
+
+def post_json(url: str, payload: dict) -> dict:
+    body = json.dumps(payload).encode("utf-8")
+    req = request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=60) as resp:
+            raw = resp.read().decode("utf-8")
+    except error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Feishu API error {exc.code}: {raw}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Failed to reach Feishu API: {exc}") from exc
+
+    payload = json.loads(raw or "{}")
+    code = int(payload.get("code", 0) or 0)
+    if code != 0:
+        raise RuntimeError(f"Feishu API returned code {code}: {payload.get('msg') or payload.get('message') or 'unknown error'}")
+    return payload
 
 
 def exchange_code(app_id: str, app_secret: str, code: str) -> dict:
