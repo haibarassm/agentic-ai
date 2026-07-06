@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>{{ meta.company }}（{{ meta.stock_code }}）{{ meta.period }} 年报财务风险研判</title>
+<style>
+  :root {
+    --primary: #1f4e79; --warn: #c00000; --good: #2e7d32; --orange: #e67e00;
+    --grey: #7f7f7f; --bg: #f7f8fa; --card: #ffffff; --border: #e2e6ec;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+         margin: 0; padding: 0; background: var(--bg); color: #222; line-height: 1.6; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 28px 64px; }
+  header { background: linear-gradient(135deg, #1f4e79, #2a6fa8); color: #fff;
+           padding: 28px 32px; border-radius: 10px; margin-bottom: 24px; }
+  header h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+  header .sub { opacity: .9; font-size: 13px; }
+  .meta-bar { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 12.5px; }
+  .meta-bar span { background: rgba(255,255,255,.15); padding: 3px 10px; border-radius: 12px; }
+  h2 { color: var(--primary); font-size: 17px; border-left: 4px solid var(--primary);
+       padding-left: 10px; margin: 34px 0 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .overall { font-size: 14.5px; color: #333; }
+  .finding-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .finding-head .id { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--primary); }
+  .finding-head .title { font-weight: 600; font-size: 14.5px; }
+  .badge { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 10px; color: #fff; }
+  .sev-high { background: var(--warn); }
+  .sev-medium { background: var(--orange); }
+  .sev-low { background: var(--good); }
+  .cat { font-size: 11.5px; color: var(--grey); border: 1px solid var(--border);
+         padding: 1px 8px; border-radius: 10px; }
+  .summary { font-size: 13.5px; color: #444; margin: 4px 0 8px; }
+  .narrative { font-size: 13px; color: #555; text-align: justify; }
+  .metrics { margin: 10px 0; }
+  .metrics table { border-collapse: collapse; font-size: 12.5px; }
+  .metrics td { padding: 3px 12px 3px 0; }
+  .metrics td.k { color: var(--grey); }
+  .metrics td.v { font-family: ui-monospace, Consolas, monospace; font-weight: 600; color: #222; }
+  .evidence { margin-top: 10px; font-size: 12px; }
+  .evidence caption { caption-side: top; text-align: left; color: var(--grey); margin-bottom: 4px; font-size: 11.5px; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  table.grid th, table.grid td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; }
+  table.grid th { background: #eef2f7; color: #334; font-weight: 600; }
+  table.grid td.num { font-family: ui-monospace, Consolas, monospace; text-align: right; white-space: nowrap; }
+  .verdict-pass { color: var(--good); font-weight: 700; }
+  .verdict-warn { color: var(--orange); font-weight: 700; }
+  .verdict-fail { color: var(--warn); font-weight: 700; }
+  .figures { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--border);
+           border-radius: 8px; padding: 10px 12px 6px; }
+  figure img { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 12px; color: var(--grey); margin-top: 6px; }
+  .ok-tag { color: var(--good); font-weight: 700; }
+  .check-row { font-size: 13px; margin: 4px 0; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border);
+           font-size: 11.5px; color: var(--grey); }
+  @media (max-width: 760px) { .figures { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>{{ meta.company }}（{{ meta.stock_code }}）{{ meta.period }} 年报 · 财务风险研判</h1>
+    <div class="sub">由 Claude Code 人工研判产出（L4 人工闸门），Python 流水线仅做解析 / 出图 / 汇编</div>
+    <div class="meta-bar">
+      <span>报告期：{{ meta.period }}</span>
+      <span>币种：{{ meta.currency }}</span>
+      <span>原始单位：{{ meta.unit }}</span>
+      <span>来源：{{ meta.source_pdf }}</span>
+      <span>解析时间：{{ meta.parsed_at }}</span>
+    </div>
+  </header>
+
+  <!-- 核心结论 -->
+  <h2>核心结论</h2>
+  <div class="card overall">{{ findings.overall }}</div>
+
+  <!-- 风险研判 -->
+  <h2>风险研判（{{ findings.risk_findings|length }} 项）</h2>
+  {% for f in findings.risk_findings %}
+  <div class="card">
+    <div class="finding-head">
+      <span class="id">{{ f.id }}</span>
+      <span class="title">{{ f.title }}</span>
+      <span class="badge sev-{{ f.severity }}">{{ sev_label[f.severity] }}</span>
+      <span class="cat">{{ f.category }}</span>
+    </div>
+    <div class="summary">{{ f.summary }}</div>
+    <div class="narrative">{{ f.narrative }}</div>
+    {% if f.metrics %}
+    <div class="metrics">
+      {% for k, v in f.metrics.items() %}
+      <table><tr>
+        <td class="k">{{ k }}</td><td class="v">{{ v if v is string else format_value(v) }}</td>
+      </tr></table>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if f.evidence %}
+    <div class="evidence">
+      <table class="grid">
+        <caption>证据（指向 报表 + 科目 + 期间 + 值；单位：亿元）</caption>
+        <thead><tr><th>报表</th><th>科目</th><th>期间</th><th class="num">值（亿元）</th></tr></thead>
+        <tbody>
+        {% for e in f.evidence %}
+          <tr>
+            <td>{{ e.statement }}</td><td>{{ e.item }}</td><td>{{ e.period }}</td>
+            <td class="num">{{ format_value(e.value) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <!-- 交叉验证 -->
+  <h2>交叉验证（{{ findings.cross_checks|length }} 项）</h2>
+  <div class="card" style="padding: 8px 10px;">
+    <table class="grid">
+      <thead><tr><th>编号</th><th>校验项</th><th>判定</th><th>说明</th></tr></thead>
+      <tbody>
+      {% for c in findings.cross_checks %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.name }}</td>
+          <td><span class="verdict-{{ c.verdict }}">{{ verdict_label[c.verdict] }}</span></td>
+          <td>{{ c.summary }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 图表 -->
+  <h2>图表分析</h2>
+  <div class="figures">
+    {% for fig in figures %}
+    <figure>
+      <img src="{{ fig.data_url }}" alt="{{ fig.title }}">
+      <figcaption><b>{{ fig.title }}</b> · {{ fig.caption }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+
+  <!-- 主要会计数据（多年趋势） -->
+  <h2>主要会计数据（多年趋势）</h2>
+  <div class="card" style="padding: 8px 10px;">
+    <table class="grid">
+      <thead><tr><th>指标</th>
+        {% for p in summary.periods %}<th class="num">{{ p }}</th>{% endfor %}
+        <th class="num">单位</th>
+      </tr></thead>
+      <tbody>
+      {% for label, row in summary.rows %}
+        <tr>
+          <td>{{ label }}</td>
+          {% for v in row %}<td class="num">{{ v }}</td>{% endfor %}
+          <td class="num">{{ summary.unit_label }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 关键科目快照 -->
+  <h2>关键科目快照（期末 vs 期初）</h2>
+  <div class="card" style="padding: 8px 10px;">
+    <table class="grid">
+      <thead><tr><th>报表</th><th>科目</th><th class="num">期末（亿元）</th><th class="num">期初（亿元）</th><th class="num">变动</th></tr></thead>
+      <tbody>
+      {% for r in snapshot %}
+        <tr>
+          <td>{{ r.statement }}</td><td>{{ r.item }}</td>
+          <td class="num">{{ r.current }}</td><td class="num">{{ r.prior }}</td>
+          <td class="num">{{ r.delta }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 报表自检 -->
+  <h2>报表自检</h2>
+  <div class="card">
+    <div class="check-row">资产负债恒等式（资产 = 负债 + 所有者权益）：</div>
+    <div class="check-row">　期末：<span class="{{ 'ok-tag' if checks.current.ok else 'verdict-fail' }}">{{ '通过 ✓' if checks.current.ok else '失败 ✗' }}</span>
+      &nbsp;资产 {{ format_value(checks.current.lhs) }} = 负债 {{ format_value(checks.current.liabilities) }} + 权益 {{ format_value(checks.current.equity) }}，diff = {{ format_value(checks.current.diff) }}</div>
+    <div class="check-row">　期初：<span class="{{ 'ok-tag' if checks.prior.ok else 'verdict-fail' }}">{{ '通过 ✓' if checks.prior.ok else '失败 ✗' }}</span>
+      &nbsp;资产 {{ format_value(checks.prior.lhs) }} = 负债 {{ format_value(checks.prior.liabilities) }} + 权益 {{ format_value(checks.prior.equity) }}，diff = {{ format_value(checks.prior.diff) }}</div>
+  </div>
+
+  <footer>
+    本报告由 ai-quant-cli 流水线汇编。L1 解析（pdfplumber）/ L2 出图（matplotlib）/ L3 汇编（Jinja2）为确定性脚本；
+    L4 风险研判由 Claude Code 人工完成，不调用任何大模型 API。生成于 {{ generated_at }}。
+  </footer>
+</div>
+</body>
+</html>

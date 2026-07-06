@@ -1,11 +1,10 @@
-"""ai_quant —— 从年报 PDF 到 HTML 投研报告的本地分析系统。
+"""ai_quant —— 本地量化投研系统包。
 
 分层（DAG）：
-    L1 parsing  解析 PDF → data/parsed/financials.json   （代码·确定性）
-    L2 viz      结构化数据 → build/figures/*.png          （代码·确定性）
-    L4 研判      结构化数据 → analysis/findings.json        （由 Claude Code 亲自产出，非脚本）
-    L3 report   数据+图+研判 → reports/*.html              （代码·确定性）
-    L5 pipeline 一键编排：L1 →（L2 ∥ L4）→ L3
+- parsing: L1 PDF → financials.json（合并三表 + 多年汇总 + 恒等式自检）
+- viz:     L2 financials.json → 图表 PNG + manifest
+- report:  L3 fan-in 汇编 HTML
+- pipeline: L5 一键编排（含 L4 研判闸门）
 
-铁律：代码层只做确定性工作，不在任何脚本里调用大模型 API。
+铁律：研判由 Claude Code 亲自做（产出 analysis/findings_*.json），代码不调大模型 API。
 """

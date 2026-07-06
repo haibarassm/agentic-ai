@@ -1,118 +1,165 @@
-"""L5 编排层：一键重跑整条流程。
+"""L5 流水线编排：L1 解析 → (L2 出图 ∥ L4 人工研判) → L3 汇编。
 
-硬约束：L1 最先、L3 最后；中间 L2 出图与 L4 研判并行。L4 研判是人工产出的
-analysis/findings.json（非脚本），编排无法自动跑它——进 L3 前做闸门检查：
-findings.json 缺失或不完整就明确提示并停下，不静默出半成品报告。
+DAG：
+    PDF ──L1──▶ financials_<code>.json ──┬──▶ L2 figures (build/figures)
+                                         │
+                                         ├──▶ L4 人工研判 (analysis/findings_<code>.json)  ← 人工产物，不在脚本里
+                                         │
+                                         └──▶ 【L4 闸门】findings 就位？
+                                                  ├ 是 → L3 汇编 → report_<code>_<period>_<ts>.html
+                                                  └ 否 → 报错停下，绝不静默出半成品报告
 
-流程：
-    L1 解析(PDF → financials.json)
-      → L2 出图(financials + findings → figures/*.png)         ┐ 二者无依赖
-      → [闸门] 检查 L4 研判产物 analysis/findings.json 是否就位  ┘
-      → L3 报告(financials + findings + figures → report.html)
+铁律：L4 风险研判由 Claude Code 人工产出，本模块不调任何大模型 API。
+本模块只做编排与确定性计算（解析/出图/汇编），并守好 L4 闸门。
 """
 
 from __future__ import annotations
 
 import json
-import sys
-import time
+from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-PARSED = ROOT / "data" / "parsed" / "financials.json"
+from ..parsing.extract import extract_financials
+from ..viz.charts import render_all_figures
+from ..report.build import build_report
+
+# 可跳过的阶段名（用于 --skip-*）。
+STAGE_PARSE = "parse"
+STAGE_FIGURES = "figures"
 
 
-class PipelineError(RuntimeError):
-    pass
+class L4GateError(RuntimeError):
+    """L4 人工研判产物缺失，拒绝汇编报告。"""
 
 
-def _log(step, msg):
-    print(f"  [{step}] {msg}")
+@dataclass
+class PipelineResult:
+    financials_path: Path
+    figures_dir: Path
+    findings_path: Path
+    report_path: Path | None  # L4 闸门未过时为 None
+    code: str
+    period: str
 
 
-def _gate_check_findings(stock_code: str) -> dict:
-    """L4 闸门：按股票代码定位研判产物，必须就位且结构完整，否则停下。"""
-    from ai_quant.common import findings_path
-
-    fp = findings_path(stock_code, ROOT)
-    if not fp.exists():
-        expected = f"analysis/findings_{stock_code}.json" if stock_code else "analysis/findings.json"
-        raise PipelineError(
-            f"研判产物缺失：找不到 {expected}\n"
-            "  L4 风险研判由分析者（Claude Code）人工产出，按公司存为 analysis/findings_<代码>.json，不是脚本自动生成。\n"
-            f"  请先为该公司（代码 {stock_code or '未知'}）完成研判并落盘，再重跑本编排。"
-        )
-    try:
-        data = json.loads(fp.read_text("utf-8"))
-    except json.JSONDecodeError as e:
-        raise PipelineError(f"研判产物不是合法 JSON：{e}")
-    missing = [k for k in ("risk_findings", "cross_checks") if not data.get(k)]
-    if missing:
-        raise PipelineError(f"研判产物缺少必需字段：{missing}")
-    return data
+def _find_pdf_for_code(data_dir: Path, code: str) -> Path | None:
+    """按 code 猜测 PDF 文件名（data/<code>*.pdf 或 data/*<关键词>*.pdf）。"""
+    candidates = sorted(data_dir.glob(f"*{code}*.pdf"))
+    if candidates:
+        return candidates[0]
+    # 退化：data 下唯一一个 pdf
+    all_pdf = sorted(data_dir.glob("*.pdf"))
+    if len(all_pdf) == 1:
+        return all_pdf[0]
+    return None
 
 
-def run_pipeline(pdf_path: str, skip_figures: bool = False, stock_code: str = "") -> dict:
-    """一键跑完 解析 → 出图 → 闸门 → 报告，返回各阶段产物路径与计时。"""
-    sys.path.insert(0, str(ROOT / "src"))
-    from ai_quant.parsing.extract import extract_financials
-    from ai_quant.viz.charts import render_all
-    from ai_quant.report.build import build_report
+def run_pipeline(
+    *,
+    code: str,
+    root_dir: str | Path,
+    pdf_path: str | Path | None = None,
+    skip_parse: bool = False,
+    skip_figures: bool = False,
+    generated_at: str = "",
+) -> PipelineResult:
+    """跑完整流水线。
 
-    pdf = Path(pdf_path)
-    if not pdf.exists():
-        raise PipelineError(f"找不到年报 PDF：{pdf}")
+    Args:
+        code: 股票代码（定位 financials/findings/report）。
+        root_dir: 项目根。
+        pdf_path: 年报 PDF 路径（skip_parse=False 时必需）。
+        skip_parse: 复用已存在的 financials_<code>.json，跳过 L1。
+        skip_figures: 跳过 L2 出图（复用已有 build/figures）。
+        generated_at: 报告时间戳。
+    """
+    root = Path(root_dir)
+    parsed_dir = root / "data" / "parsed"
+    figures_dir = root / "build" / "figures"
+    reports_dir = root / "build" / "reports"
+    findings_dir = root / "analysis"
+    parsed_dir.mkdir(parents=True, exist_ok=True)
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    reports_dir.mkdir(parents=True, exist_ok=True)
 
-    result = {}
-    t0 = time.time()
+    financials_path = parsed_dir / f"financials_{code}.json"
+    findings_path = findings_dir / f"findings_{code}.json"
+    manifest_path = figures_dir / "manifest.json"
 
     # ---- L1 解析 ----
-    print("▶ L1 解析")
-    data = extract_financials(str(pdf), stock_code=stock_code)
-    PARSED.parent.mkdir(parents=True, exist_ok=True)
-    PARSED.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    st = data["statements"]
-    ok = data["checks"]["balance_identity"]["ok"]
-    _log("L1", f"三表科目 {len(st['balance_sheet'])}/{len(st['income'])}/{len(st['cash_flow'])}"
-               f"，会计恒等式自检 {'✓ 通过' if ok else '✗ 不平'}")
-    if not ok:
-        raise PipelineError("会计恒等式自检未通过，疑似解析错误，已中止。请检查 L1 解析。")
-    result["financials"] = str(PARSED)
-
-    # ---- L2 出图（与 L4 研判逻辑上并行；研判已离线完成）----
-    if skip_figures:
-        print("▶ L2 出图（跳过）")
+    if skip_parse:
+        if not financials_path.exists():
+            raise FileNotFoundError(f"--skip-parse 但 {financials_path} 不存在")
+        print(f"[L1] skip，复用 {financials_path.relative_to(root)}")
+        fin = json.loads(financials_path.read_text(encoding="utf-8"))
     else:
-        print("▶ L2 出图")
-        chosen, manifest = render_all()
-        _log("L2", f"中文字体 {chosen}，生成 {len(manifest)} 张图 → build/figures/")
-        result["figures"] = len(manifest)
+        if pdf_path is None:
+            pdf_path = _find_pdf_for_code(root / "data", code)
+        if pdf_path is None or not Path(pdf_path).exists():
+            raise FileNotFoundError(f"找不到 {code} 对应的 PDF，请用 --pdf 指定")
+        print(f"[L1] 解析 {Path(pdf_path).name} ...")
+        fin = extract_financials(Path(pdf_path), stock_code=code)
+        financials_path.write_text(json.dumps(fin, ensure_ascii=False, indent=2), encoding="utf-8")
+        code = fin["meta"]["stock_code"] or code
+        # code 可能因解析被校正，重新定位 findings 路径
+        findings_path = findings_dir / f"findings_{code}.json"
+        financials_path = parsed_dir / f"financials_{code}.json"
+        if not financials_path.exists():
+            financials_path.write_text(json.dumps(fin, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # 恒等式自检（L1 内置，这里只汇报）
+    chk = fin.get("checks", {}).get("balance_identity", {})
+    cur_ok = chk.get("current", {}).get("ok", False)
+    pri_ok = chk.get("prior", {}).get("ok", False)
+    print(f"[L1] 恒等式自检：期末 {'✅' if cur_ok else '❌'}  期初 {'✅' if pri_ok else '❌'}")
+
+    period = fin.get("meta", {}).get("period", "unknown")
+
+    # ---- L2 出图 ----
+    if skip_figures:
+        print(f"[L2] skip，复用 {figures_dir.relative_to(root)}")
+    else:
+        print(f"[L2] 出图 → {figures_dir.relative_to(root)}/")
+        manifest = render_all_figures(fin, out_dir=figures_dir)
+        print(f"[L2] 渲染 {len(manifest)} 张图")
 
     # ---- L4 闸门 ----
-    print("▶ L4 研判闸门")
-    from ai_quant.common import findings_path
-    code = data["meta"].get("stock_code", "")
-    finds = _gate_check_findings(code)
-    fp = findings_path(code, ROOT)
-    n2 = len(finds.get("cross_checks_round2", []))
-    _log("L4", f"{fp.name} 就位：风险 {len(finds['risk_findings'])} 条、"
-               f"勾稽 {len(finds['cross_checks'])}+{n2} 条 ✓")
-    result["findings"] = str(fp)
+    if not findings_path.exists():
+        msg = (f"L4 闸门未通过：缺少 {findings_path.relative_to(root)}。\n"
+               f"L1/L2 已完成，但风险研判（findings）必须由 Claude Code 人工产出后才能汇编报告。\n"
+               f"拒绝静默出半成品报告。请补齐 findings 后重跑（可加 --skip-parse --skip-figures）。")
+        print(f"[L4] ❌ {msg}", flush=True)
+        raise L4GateError(msg)
+    print(f"[L4] ✅ 闸门通过：{findings_path.relative_to(root)}")
+    findings = json.loads(findings_path.read_text(encoding="utf-8"))
 
-    # ---- L3 报告 ----
-    print("▶ L3 报告")
-    out = build_report()
-    _log("L3", f"{out.name}（{out.stat().st_size/1024:.0f} KB，图表内嵌）")
-    result["report"] = str(out)
+    # ---- L3 汇编 ----
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"缺少 {manifest_path}，L2 未产出")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    report_path = reports_dir / f"report_{code}_{period}_{_safe_ts(generated_at)}.html"
+    print(f"[L3] 汇编报告 → {report_path.relative_to(root)}")
+    build_report(fin, findings, manifest, report_path, base_dir=root, generated_at=generated_at)
+    print(f"[L3] ✅ 完成")
 
-    result["elapsed_sec"] = round(time.time() - t0, 1)
-    print(f"\n✅ 全流程完成，用时 {result['elapsed_sec']}s")
-    print(f"   打开报告： open '{out}'")
+    return PipelineResult(
+        financials_path=financials_path,
+        figures_dir=figures_dir,
+        findings_path=findings_path,
+        report_path=report_path,
+        code=code,
+        period=period,
+    )
 
-    # 列出最近若干份报告，方便对比历史（不覆盖）
-    reports = sorted((ROOT / "reports").glob("report_*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if len(reports) > 1:
-        print(f"   reports/ 现有 {len(reports)} 份历史报告，最近 5 份：")
-        for p in reports[:5]:
-            print(f"     - {p.name}")
-    return result
+
+def _safe_ts(generated_at: str) -> str:
+    """从 ISO 时间戳里取 yyyymmdd_hhmm 做文件名；空则返回 'manual'。"""
+    if not generated_at:
+        return "manual"
+    # 形如 2026-07-06T13:59:00+08:00 → 20260706_1359
+    try:
+        date_part = generated_at[:10].replace("-", "")
+        time_part = generated_at[11:16].replace(":", "")
+        return f"{date_part}_{time_part}"
+    except Exception:
+        return "manual"

@@ -1,324 +1,239 @@
-"""L2 出图层：读 financials.json + findings.json，渲染趋势/结构图。
+"""L2 出图：matplotlib 渲染趋势/结构图，处理中文字体与负号。
 
-中文字体（阶段 4 实测落定）：matplotlib 默认无中文字体会乱码（缺字变方框）。
-本模块用一个回退链挑第一个本机可用的 CJK 字体，并关掉 unicode_minus
-（否则负号渲染成方框）。macOS 上 PingFang SC / Hiragino Sans GB / Arial
-Unicode MS / Heiti SC 至少有一个在。
-
-产出：build/figures/*.png + build/figures/manifest.json（report 层按 id 内嵌）。
-金额一律由千元换算为「亿元」展示（÷1e5），更易读。
+渲染约定（踩坑后默认遵守）：
+- 后端 Agg（无界面直接出 PNG）。
+- 中文字体回退链：挑本机第一个可用 CJK 字体。
+- axes.unicode_minus=False（负号否则变方框；本项目有大量负值）。
+- 金额统一换算成「亿元」更易读（源数据是千元）。
+- 产出 build/figures/*.png + manifest.json（report 层按 id 内嵌）。
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 
-matplotlib.use("Agg")  # 无界面后端，直接出 PNG
-import matplotlib.pyplot as plt
-from matplotlib import font_manager
+matplotlib.use("Agg")
+import matplotlib.font_manager as fm  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 
-from ai_quant.common import findings_path, val
+from ..common import to_yi  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[3]
-FIG_DIR = ROOT / "build" / "figures"
+# 配色
+C_PRIMARY = "#1f4e79"   # 深蓝主色
+C_WARN = "#c00000"      # 警示红（负值/风险）
+C_GOOD = "#2e7d32"      # 正向绿
+C_PRIOR = "#a6c8e0"     # 上期浅蓝
+C_GREY = "#7f7f7f"      # 中性灰
 
-# 中文字体回退链：优先黑体类无衬线
-_FONT_PREFERENCE = [
-    "PingFang SC",
-    "Hiragino Sans GB",
-    "Arial Unicode MS",
-    "Heiti SC",
-    "Songti SC",
-    "STHeiti",
+# 中文字体回退链（跨平台：Windows/macOS/Linux 都覆盖）
+_CJK_CANDIDATES = [
+    "Microsoft YaHei", "SimHei", "SimSun",  # Windows
+    "PingFang SC", "Hiragino Sans GB", "Arial Unicode MS", "Heiti SC",  # macOS
+    "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Zen Hei",  # Linux
 ]
 
-# 专业、克制的配色
-C_PRIMARY = "#1f4e79"   # 深蓝
-C_ACCENT = "#c00000"    # 警示红
-C_GREEN = "#2e7d32"
-C_GRAY = "#7f7f7f"
-C_PRIOR = "#a6c8e0"     # 上期浅蓝
-C_CUR = "#1f4e79"       # 本期深蓝
-C_POS = "#2e7d32"
-C_NEG = "#c00000"
-
-YI = 1e5  # 千元 → 亿元
+_FONT_SETUP = False
 
 
 def setup_chinese_font() -> str:
-    """挑第一个本机可用的中文字体并设进 rcParams，返回字体名。"""
-    available = {f.name for f in font_manager.fontManager.ttflist}
-    chosen = next((f for f in _FONT_PREFERENCE if f in available), None)
-    if chosen is None:
-        raise RuntimeError(
-            "未找到可用中文字体，候选：" + "、".join(_FONT_PREFERENCE)
-        )
-    plt.rcParams["font.sans-serif"] = [chosen] + plt.rcParams.get("font.sans-serif", [])
-    plt.rcParams["font.family"] = "sans-serif"
-    plt.rcParams["axes.unicode_minus"] = False  # 负号正常显示，不变方框
-    plt.rcParams["figure.dpi"] = 130
-    plt.rcParams["savefig.bbox"] = "tight"
+    """挑本机第一个可用的 CJK 字体，写进 rcParams。返回字体名（找不到返回空）。"""
+    global _FONT_SETUP
+    available = {f.name for f in fm.fontManager.ttflist}
+    chosen = ""
+    for name in _CJK_CANDIDATES:
+        if name in available:
+            chosen = name
+            break
+    if not chosen:
+        # 退而求其次：任何名字含 CJK 关键词的
+        for f in fm.fontManager.ttflist:
+            if any(k in f.name for k in ("Hei", "Song", "Kai", "Yuan", "CJK", "SC")):
+                chosen = f.name
+                break
+    plt.rcParams["font.sans-serif"] = ([chosen] if chosen else []) + plt.rcParams["font.sans-serif"]
+    plt.rcParams["axes.unicode_minus"] = False
+    _FONT_SETUP = True
     return chosen
 
 
-def _load():
-    fin = json.loads((ROOT / "data" / "parsed" / "financials.json").read_text("utf-8"))
-    fp = findings_path(fin["meta"].get("stock_code"), ROOT)
-    finds = json.loads(fp.read_text("utf-8"))
-    return fin, finds
+def _yi(value_kilo: float | None) -> float | None:
+    return to_yi(value_kilo)
 
 
-def _bs(fin, name, period="current"):
-    it = fin["statements"]["balance_sheet"].get(name)
-    return it[period] if it else None
+def _period_labels(periods: list[str]) -> list[str]:
+    return [f"{p}" for p in periods]
 
 
-def _find(fin, stmt, sub, period="current"):
-    for k, v in fin["statements"][stmt].items():
-        if sub in k:
-            return v[period]
-    return None
-
-
-def _save(fig, fid, title, caption, manifest):
-    path = FIG_DIR / f"{fid}.png"
-    fig.savefig(path)
+def _save(fig, out_dir: Path, fig_id: str, title: str, caption: str, manifest: list[dict]) -> Path:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"{fig_id}.png"
+    fig.tight_layout()
+    fig.savefig(path, dpi=130, bbox_inches="tight")
     plt.close(fig)
-    manifest.append(
-        {"id": fid, "path": f"figures/{fid}.png", "title": title, "caption": caption}
-    )
+    manifest.append({"id": fig_id, "path": str(path.relative_to(out_dir.parent.parent)).replace("\\", "/"),
+                     "title": title, "caption": caption})
+    return path
 
 
-def _bar_labels(ax, bars, fmt="{:.0f}", dy=0):
-    for b in bars:
-        h = b.get_height()
-        ax.annotate(
-            fmt.format(h),
-            (b.get_x() + b.get_width() / 2, h),
-            ha="center",
-            va="bottom" if h >= 0 else "top",
-            fontsize=8,
-            xytext=(0, 2 + dy if h >= 0 else -2 - dy),
-            textcoords="offset points",
-        )
+def _chart_revenue_profit(summary: dict, out_dir: Path, manifest: list) -> None:
+    series = summary.get("series", {})
+    periods = _period_labels(summary.get("periods", []))
+    rev = series.get("营业收入")
+    ni = series.get("归属于母公司所有者的净利润")
+    if not periods or rev is None:
+        return
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.plot(periods, [_yi(v) for v in rev], "-o", color=C_PRIMARY, linewidth=2.2, label="营业收入")
+    if ni is not None:
+        ax.plot(periods, [_yi(v) for v in ni], "-s", color=C_WARN, linewidth=2.2, label="归母净利润")
+    ax.set_title("营业收入与归母净利润趋势")
+    ax.set_ylabel("亿元")
+    ax.legend(loc="best", framealpha=0.9)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    _save(fig, out_dir, "revenue_profit", "营收与归母净利润",
+          "多年趋势（路A：年报内嵌主要会计数据）。单位：亿元。", manifest)
 
 
-# ---------------- 各图 ----------------
-
-def chart_revenue_profit(fin, manifest):
-    rev_c_raw = val(fin, "营业收入"); rev_p_raw = val(fin, "营业收入", "prior")
-    rev_c = rev_c_raw / YI
-    rev_p = rev_p_raw / YI
-    ni_c = val(fin, "净利润") / YI
-    ni_p = val(fin, "净利润", "prior") / YI
-    cogs_c = val(fin, "营业成本")
-    cogs_p = val(fin, "营业成本", "prior")
-    gm_c = (rev_c_raw - cogs_c) / rev_c_raw * 100
-    gm_p = (rev_p_raw - cogs_p) / rev_p_raw * 100
-    nm_c = ni_c / rev_c * 100
-    nm_p = ni_p / rev_p * 100
-
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    x = [0, 1]
-    w = 0.34
-    b1 = ax.bar([i - w / 2 for i in x], [rev_p, rev_c], w, label="营业收入", color=[C_PRIOR, C_CUR])
-    b2 = ax.bar([i + w / 2 for i in x], [ni_p, ni_c], w, label="净利润", color=["#f4b9b9", C_ACCENT])
-    ax.set_xticks(x)
-    ax.set_xticklabels(["2024", "2025"])
-    ax.set_ylabel("金额（亿元）")
-    _bar_labels(ax, list(b1) + list(b2), "{:.0f}")
-
-    ax2 = ax.twinx()
-    ax2.plot(x, [gm_p, gm_c], "o-", color=C_GREEN, lw=2, label="毛利率")
-    ax2.plot(x, [nm_p, nm_c], "s--", color=C_GRAY, lw=2, label="净利率")
-    ax2.set_ylabel("比率（%）")
-    ax2.set_ylim(0, max(gm_c, nm_c) * 1.8)
-    for xi, (g, n) in zip(x, [(gm_p, nm_p), (gm_c, nm_c)]):
-        ax2.annotate(f"{g:.1f}%", (xi, g), color=C_GREEN, fontsize=8, xytext=(0, 6), textcoords="offset points", ha="center")
-        ax2.annotate(f"{n:.1f}%", (xi, n), color=C_GRAY, fontsize=8, xytext=(0, -12), textcoords="offset points", ha="center")
-
-    ax.set_title("营收与净利润：增长与盈利能力", fontweight="bold")
-    h1, l1 = ax.get_legend_handles_labels()
-    h2, l2 = ax2.get_legend_handles_labels()
-    ax.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=8, ncol=2)
-    _save(fig, "revenue_profit", "营收与净利润",
-          "净利润+42%显著快于营收+17%，由毛利率提升与财务净收益驱动。", manifest)
+def _chart_profitability(summary: dict, out_dir: Path, manifest: list) -> None:
+    series = summary.get("series", {})
+    periods = _period_labels(summary.get("periods", []))
+    rev = series.get("营业收入")
+    ni = series.get("归属于母公司所有者的净利润")
+    roe = series.get("加权平均净资产收益率")
+    if not periods or rev is None or ni is None:
+        return
+    net_margin = [(_yi(n) / _yi(r) * 100) if r else None for r, n in zip(rev, ni)]
+    fig, ax1 = plt.subplots(figsize=(7, 4))
+    ax1.plot(periods, net_margin, "-o", color=C_PRIMARY, linewidth=2.2, label="净利率(归母/营收)")
+    ax1.set_ylabel("净利率 %", color=C_PRIMARY)
+    ax1.tick_params(axis="y", labelcolor=C_PRIMARY)
+    ax1.grid(axis="y", linestyle="--", alpha=0.4)
+    if roe is not None:
+        ax2 = ax1.twinx()
+        ax2.plot(periods, [v * 100 if v is not None else v for v in roe], "--s", color=C_GOOD, linewidth=2, label="ROE")
+        ax2.set_ylabel("ROE %", color=C_GOOD)
+        ax2.tick_params(axis="y", labelcolor=C_GOOD)
+    ax1.set_title("盈利质量：净利率与 ROE")
+    _save(fig, out_dir, "profitability", "净利率与ROE",
+          "净利率=归母净利润/营业收入；ROE=加权平均净资产收益率。", manifest)
 
 
-def chart_ocf_bridge(fin, finds, manifest):
-    """经营现金流构成瀑布图：净利润 → 各调节项 → 经营现金流。
+def _chart_ocf_vs_ni(summary: dict, out_dir: Path, manifest: list) -> None:
+    series = summary.get("series", {})
+    periods = _period_labels(summary.get("periods", []))
+    ocf = series.get("经营活动产生的现金流量净额")
+    ni = series.get("归属于母公司所有者的净利润")
+    if not periods or ocf is None or ni is None:
+        return
+    x = range(len(periods))
+    width = 0.38
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar([i - width / 2 for i in x], [_yi(v) for v in ocf], width, color=C_PRIMARY, label="经营现金流净额")
+    ax.bar([i + width / 2 for i in x], [_yi(v) for v in ni], width, color=C_WARN, label="归母净利润")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(periods)
+    ax.set_title("经营现金流 vs 归母净利润")
+    ax.set_ylabel("亿元")
+    ax.legend(loc="best", framealpha=0.9)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    _save(fig, out_dir, "ocf_vs_ni", "现金流 vs 净利润",
+          "经营现金流长期低于净利润是盈利质量警示信号。单位：亿元。", manifest)
 
-    数据来自 findings['indirect_method_bridge']['waterfall']（人工研判时按公司预分桶），
-    每项 {label, value(千元), type: start|add|sub|end}，因此本图对各公司通用、不写死科目。
+
+def _chart_balance_structure(statements: dict, out_dir: Path, manifest: list) -> None:
+    bs = statements.get("balance_sheet", {})
+    periods = ["期末", "期初"]
+    liab = [bs.get("负债合计", {}).get("current"), bs.get("负债合计", {}).get("prior")]
+    eq_parent = [bs.get("归属于母公司所有者权益合计", {}).get("current"),
+                 bs.get("归属于母公司所有者权益合计", {}).get("prior")]
+    eq_minor = [bs.get("少数股东权益", {}).get("current"), bs.get("少数股东权益", {}).get("prior")]
+    if liab[0] is None:
+        return
+    fig, ax = plt.subplots(figsize=(6.5, 4))
+    x = range(len(periods))
+    width = 0.5
+    ax.bar(list(x), [(_yi(v) or 0) for v in liab], width, color=C_WARN, label="负债合计")
+    bottoms = [(_yi(v) or 0) for v in liab]
+    ax.bar(list(x), [(_yi(v) or 0) for v in eq_parent], width, bottom=bottoms,
+           color=C_PRIMARY, label="归母权益")
+    bottoms2 = [b + ((_yi(ep) or 0)) for b, ep in zip(bottoms, eq_parent)]
+    ax.bar(list(x), [(_yi(v) or 0) for v in eq_minor], width, bottom=bottoms2,
+           color=C_GOOD, label="少数股东权益")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(periods)
+    ax.set_title("资产负债结构（负债 + 权益）")
+    ax.set_ylabel("亿元")
+    ax.legend(loc="best", framealpha=0.9, fontsize=9)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    _save(fig, out_dir, "balance_structure", "资产负债结构",
+          "期末/期初对比：负债与所有者权益构成。单位：亿元。", manifest)
+
+
+def _chart_cashflow_three(statements: dict, out_dir: Path, manifest: list) -> None:
+    """三大活动现金流净额（经营/投资/筹资），期末 vs 期初。
+
+    用子串匹配定位科目（不同公司命名带乱码尾巴，如『投资活动使用的现金流量净额))』）。
     """
-    br = finds.get("indirect_method_bridge", {})
-    wf = br.get("waterfall")
-    if not wf:
-        return  # 无桥数据则跳过该图
-    title = br.get("chart_title", "经营现金流构成拆解（瀑布图）")
-    caption = br.get("chart_caption", "净利润经折旧/减值与营运资本变动桥接到经营活动现金流量净额。")
+    cf = statements.get("cash_flow", {})
+    labels = ["经营活动", "投资活动", "筹资活动"]
+    needles = ["经营活动", "投资活动", "筹资活动"]
 
-    fig, ax = plt.subplots(figsize=(9, 4.8))
-    cum = 0.0
-    xticks = []
-    for i, step in enumerate(wf):
-        v = step["value"] / YI
-        typ = step["type"]
-        xticks.append(step["label"])
-        if typ in ("start", "end"):
-            ax.bar(i, v, 0.6, color=C_PRIMARY)
-            ax.annotate(f"{v:.0f}", (i, v), ha="center",
-                        va="bottom" if v >= 0 else "top", fontsize=8, fontweight="bold")
-            cum = v
-        else:
-            color = C_POS if v >= 0 else C_NEG
-            ax.bar(i, v, 0.6, bottom=cum, color=color, alpha=0.9)
-            ax.plot([i - 0.3, i - 0.7], [cum, cum], color=C_GRAY, lw=0.7, ls=":")
-            sign = "+" if v >= 0 else ""
-            ax.annotate(f"{sign}{v:.0f}", (i, cum + v + (1 if v >= 0 else -1)),
-                        ha="center", va="bottom" if v >= 0 else "top", fontsize=8, color=color)
-            cum += v
-    ax.set_xticks(range(len(wf)))
-    ax.set_xticklabels(xticks, fontsize=8.5)
-    ax.set_ylabel("金额（亿元）")
-    ax.axhline(0, color="black", lw=0.6)
-    ax.set_title(title, fontweight="bold", color=C_ACCENT)
-    _save(fig, "ocf_bridge", "经营现金流构成拆解（瀑布图）", caption, manifest)
+    def find_net(needle: str) -> tuple[float | None, float | None]:
+        for k, v in cf.items():
+            if needle in k and "净额" in k:
+                return v.get("current"), v.get("prior")
+        return None, None
 
+    current, prior = [], []
+    for n in needles:
+        c, p = find_net(n)
+        current.append(c); prior.append(p)
+    if current[0] is None:  # 经营活动都没有就不出图
+        return
+    # 投资活动『使用的现金流量净额』按惯例是负值（净流出），若原值>0 则取负
+    def norm_neg(v, idx):
+        if v is None:
+            return None
+        return -v if (idx == 1 and v > 0) else v
 
-def chart_inventory_structure(finds, manifest):
-    """存货结构 期末vs期初（账面价值）。数据来自 findings['inventory_composition']
-    （人工研判时从存货附注录入），每项 {name, current, prior}，对各公司通用。"""
-    comp_list = finds.get("inventory_composition")
-    if not comp_list:
-        return  # 无存货结构数据则跳过该图
-    labels = [c["name"] for c in comp_list]
-    cur = [c["current"] / YI for c in comp_list]
-    pri = [c["prior"] / YI for c in comp_list]
-    comp = {c["name"]: (c["current"], c["prior"]) for c in comp_list}
+    current = [norm_neg(v, i) for i, v in enumerate(current)]
+    prior = [norm_neg(v, i) for i, v in enumerate(prior)]
     x = range(len(labels))
-    w = 0.38
-    fig, ax = plt.subplots(figsize=(7.6, 4.2))
-    b1 = ax.bar([i - w / 2 for i in x], pri, w, label="期初(2024)", color=C_PRIOR)
-    b2 = ax.bar([i + w / 2 for i in x], cur, w, label="期末(2025)", color=C_CUR)
-    _bar_labels(ax, list(b1) + list(b2), "{:.0f}")
+    width = 0.38
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar([i - width / 2 for i in x], [(_yi(v) or 0) for v in current], width, color=C_PRIMARY, label="期末")
+    ax.bar([i + width / 2 for i in x], [(_yi(v) or 0) for v in prior], width, color=C_PRIOR, label="期初")
+    ax.axhline(0, color=C_GREY, linewidth=0.8)
     ax.set_xticks(list(x))
     ax.set_xticklabels(labels)
-    ax.set_ylabel("账面价值（亿元）")
-    ax.set_title(finds.get("inventory_title", "存货结构：期末 vs 期初（账面价值）"), fontweight="bold")
-    ax.legend(fontsize=8)
-    for i, k in enumerate(labels):
-        g = comp[k][0] / comp[k][1] - 1
-        ax.annotate(f"{g:+.0%}", (i, max(cur[i], pri[i])), ha="center", va="bottom",
-                    fontsize=8, color=C_ACCENT if g > 0.3 else C_GRAY, xytext=(0, 12), textcoords="offset points")
-    # 默认按数据生成图注：点出增幅最大的存货类目
-    top = max(comp_list, key=lambda c: (c["current"] - c["prior"]) / c["prior"] if c["prior"] else 0)
-    g_top = top["current"] / top["prior"] - 1 if top["prior"] else 0
-    default_cap = f"按账面价值拆分存货：增量主要来自{top['name']}（同比 {g_top:+.0%}）。"
-    _save(fig, "inventory_structure", "存货结构对比",
-          finds.get("inventory_caption", default_cap), manifest)
+    ax.set_title("三大活动现金流量净额")
+    ax.set_ylabel("亿元")
+    ax.legend(loc="best", framealpha=0.9)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    _save(fig, out_dir, "cashflow_three", "三大活动现金流",
+          "经营/投资/筹资活动现金流量净额，期末 vs 期初。单位：亿元。", manifest)
 
 
-def chart_growth_compare(fin, manifest):
-    def gr(canonical):
-        c = val(fin, canonical)
-        p = val(fin, canonical, "prior")
-        return None if (c is None or p in (None, 0)) else (c - p) / p * 100
-    candidates = [
-        ("营业收入", "营业收入"), ("净利润", "净利润"), ("经营现金流", "经营现金流"),
-        ("应收账款", "应收账款"), ("存货", "存货"), ("资本开支", "资本开支"),
-        ("合同负债", "合同负债"),
-    ]
-    items = [(lab, gr(c)) for lab, c in candidates]
-    items = [(lab, v) for lab, v in items if v is not None]  # 缺科目则跳过
-    labels = [i[0] for i in items]
-    vals = [i[1] for i in items]
-    colors = [C_ACCENT if v >= 50 else (C_PRIMARY if v >= 0 else C_GREEN) for v in vals]
-    fig, ax = plt.subplots(figsize=(7.8, 4.2))
-    bars = ax.bar(labels, vals, color=colors, width=0.6)
-    _bar_labels(ax, bars, "{:+.0f}%")
-    ax.axhline(0, color="black", lw=0.6)
-    ax.set_ylabel("同比增速（%）")
-    ax.set_title("关键指标同比增速", fontweight="bold")
-    _save(fig, "growth_compare", "关键指标同比增速",
-          "关键财务指标同比增速对比，红=高增(≥50%)、蓝=增长、绿=下降。", manifest)
+def render_all_figures(financials: dict[str, Any], out_dir: str | Path = "build/figures") -> list[dict]:
+    """渲染全部图表到 out_dir，返回 manifest（同时写 manifest.json）。"""
+    if not _FONT_SETUP:
+        setup_chinese_font()
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest: list[dict] = []
 
+    summary = financials.get("summary_history", {})
+    statements = financials.get("statements", {})
 
-def chart_balance_structure(fin, manifest):
-    liab_c = val(fin, "负债合计") / YI
-    liab_p = val(fin, "负债合计", "prior") / YI
-    eq_c = val(fin, "所有者权益合计") / YI
-    eq_p = val(fin, "所有者权益合计", "prior") / YI
-    interest_c = ((val(fin, "短期借款") or 0) + (val(fin, "长期借款") or 0)) / YI
+    _chart_revenue_profit(summary, out_dir, manifest)
+    _chart_profitability(summary, out_dir, manifest)
+    _chart_ocf_vs_ni(summary, out_dir, manifest)
+    _chart_balance_structure(statements, out_dir, manifest)
+    _chart_cashflow_three(statements, out_dir, manifest)
 
-    fig, (axL, axR) = plt.subplots(1, 2, figsize=(9.5, 4.2))
-    # 左：资产 = 负债 + 权益（堆叠）
-    x = [0, 1]
-    axL.bar(x, [liab_p, liab_c], 0.5, label="负债", color="#d99694")
-    axL.bar(x, [eq_p, eq_c], 0.5, bottom=[liab_p, liab_c], label="所有者权益", color=C_PRIMARY)
-    axL.set_xticks(x)
-    axL.set_xticklabels(["2024", "2025"])
-    axL.set_ylabel("金额（亿元）")
-    for xi, (l, e) in zip(x, [(liab_p, eq_p), (liab_c, eq_c)]):
-        axL.annotate(f"资产{l+e:.0f}", (xi, l + e), ha="center", va="bottom", fontsize=8, fontweight="bold")
-        axL.annotate(f"负债率{l/(l+e)*100:.0f}%", (xi, l / 2), ha="center", fontsize=8, color="white")
-    axL.set_title("资产 = 负债 + 所有者权益", fontweight="bold")
-    axL.legend(fontsize=8, loc="upper left")
-
-    # 右：负债拆有息 vs 无息
-    noninterest_c = liab_c - interest_c
-    axR.bar(["负债结构"], [interest_c], 0.4, label=f"有息借款 {interest_c:.0f}", color=C_ACCENT)
-    axR.bar(["负债结构"], [noninterest_c], 0.4, bottom=[interest_c], label=f"经营性/无息 {noninterest_c:.0f}", color=C_GRAY)
-    axR.set_ylabel("金额（亿元）")
-    axR.annotate(f"有息负债/权益\n仅 {interest_c/eq_c*100:.0f}%", (0, interest_c / 2),
-                 ha="center", fontsize=9, color="white", fontweight="bold")
-    axR.set_title("负债结构：有息 vs 经营性负债", fontweight="bold")
-    axR.legend(fontsize=8, loc="upper right")
-    lev = liab_c / (liab_c + eq_c) * 100
-    ir = interest_c / eq_c * 100
-    _save(fig, "balance_structure", "资产负债结构",
-          f"资产负债率 {lev:.0f}%；有息借款/股东权益约 {ir:.0f}%，其余为经营性负债。", manifest)
-
-
-def chart_ocf_vs_ni(fin, manifest):
-    ni_c = val(fin, "净利润") / YI
-    ni_p = val(fin, "净利润", "prior") / YI
-    ocf_c = val(fin, "经营现金流") / YI
-    ocf_p = val(fin, "经营现金流", "prior") / YI
-    x = [0, 1]
-    w = 0.34
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    b1 = ax.bar([i - w / 2 for i in x], [ni_p, ni_c], w, label="净利润", color=["#f4b9b9", C_ACCENT])
-    b2 = ax.bar([i + w / 2 for i in x], [ocf_p, ocf_c], w, label="经营现金流", color=[C_PRIOR, C_CUR])
-    _bar_labels(ax, list(b1) + list(b2), "{:.0f}")
-    ax.set_xticks(x)
-    ax.set_xticklabels(["2024", "2025"])
-    ax.set_ylabel("金额（亿元）")
-    for xi, (ni, ocf) in zip(x, [(ni_p, ocf_p), (ni_c, ocf_c)]):
-        ax.annotate(f"现金含量 {ocf/ni:.2f}×", (xi, ocf), ha="center", va="bottom",
-                    fontsize=9, color=C_GREEN, fontweight="bold", xytext=(0, 14), textcoords="offset points")
-    ax.set_title("经营现金流 vs 净利润", fontweight="bold")
-    ax.legend(fontsize=8)
-    ocf_yoy = (ocf_c - ocf_p) / ocf_p * 100
-    _save(fig, "ocf_vs_ni", "经营现金流与净利润",
-          f"本期经营现金流为净利润 {ocf_c/ni_c:.2f} 倍；经营现金流同比 {ocf_yoy:+.0f}%。", manifest)
-
-
-def render_all() -> list:
-    FIG_DIR.mkdir(parents=True, exist_ok=True)
-    chosen = setup_chinese_font()
-    fin, finds = _load()
-    manifest: list = []
-    chart_revenue_profit(fin, manifest)
-    chart_ocf_bridge(fin, finds, manifest)
-    chart_inventory_structure(finds, manifest)
-    chart_growth_compare(fin, manifest)
-    chart_balance_structure(fin, manifest)
-    chart_ocf_vs_ni(fin, manifest)
-    (FIG_DIR / "manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    return [chosen, manifest]
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return manifest
