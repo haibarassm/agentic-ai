@@ -14,7 +14,7 @@
 | 1 | 云端 OpenClaw / 龙虾 | 能执行部署和本机 `curl` |
 | 2 | Claude Code CLI | `claude -p "请只回复 ok"` 能返回 |
 | 3 | OpenClaw 真实目录 | 推荐 `/root/.openclaw` |
-| 4 | 课程仓库 | `https://github.com/DjangoPeng/agentic-ai.git`（项目在 `Security-Guardian/` 子目录） |
+| 4 | 课程仓库 | `https://github.com/DjangoPeng/agentic-ai.git`（项目在 `security-guardian/` 子目录） |
 | 5 | 访问端口 | 固定 `8511` |
 
 > 本实验只做真实检测和建议输出，不自动修改 OpenClaw 生产配置。
@@ -42,7 +42,7 @@ OpenClaw 真实日志 / 配置 / Skill 记录
 ```text
 请帮我部署 Security Guardian。
 
-课程仓库地址（项目在 Security-Guardian/ 子目录）：
+课程仓库地址（项目在 security-guardian/ 子目录）：
 https://github.com/DjangoPeng/agentic-ai.git
 
 克隆目录：
@@ -50,13 +50,13 @@ https://github.com/DjangoPeng/agentic-ai.git
 
 请完成：
 1. 如果 /root/projects/agentic-ai 不存在就 clone；已存在就在该目录 git pull
-2. 项目目录是 /root/projects/agentic-ai/Security-Guardian
+2. 项目目录是 /root/projects/agentic-ai/security-guardian
 3. 确认该子目录下 README.md、run_dashboard.sh、openclaw_security_console/app.py 都存在
 
 完成后告诉我：
 1. clone / pull 是否成功
 2. 当前 commit hash
-3. 项目目录 /root/projects/agentic-ai/Security-Guardian 是否正确
+3. 项目目录 /root/projects/agentic-ai/security-guardian 是否正确
 ```
 
 ---
@@ -93,10 +93,12 @@ export CLAUDE_CODE_COMMAND="你的 Claude Code 非交互调用命令，例如 cl
 ```text
 请启动 Security Guardian。
 
-执行：
-cd /root/projects/agentic-ai/Security-Guardian
+执行（后台常驻，别让服务占住当前会话）：
+cd /root/projects/agentic-ai/security-guardian
 chmod +x run_dashboard.sh
-OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh
+OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 nohup ./run_dashboard.sh > /tmp/sg-8511.log 2>&1 &
+sleep 2 && curl -s http://127.0.0.1:8511/api/status >/dev/null && echo "面板已就绪：监听 0.0.0.0:8511"
+echo "面板地址：http://$(curl -4 -s --max-time 5 ifconfig.me || curl -4 -s --max-time 5 ipinfo.io/ip):8511/dashboard.html"
 
 要求：
 1. 服务监听 0.0.0.0:8511
@@ -109,7 +111,7 @@ OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh
 3. OPENCLAW_ROOT 实际值
 4. CLAUDE_CODE_TIMEOUT 实际值是否为 300
 5. 是否自动纳入 /tmp/openclaw 等额外审计目录
-6. 页面链接是否为 http://101.47.152.44:8511/dashboard.html
+6. 上一步输出的「面板地址」（用本机公网 IP 拼好的 http://<公网IP>:8511/dashboard.html）
 ```
 
 ---
@@ -149,7 +151,7 @@ curl -X POST http://127.0.0.1:8511/claude-code/analyze-cloud
 补充验证：不要用“写 test_report.json”判断 Claude 是否可用，因为某些 Claude Code 权限策略允许读取和回复，但不允许直接写文件。更接近本实验的验证方式是：
 
 ```bash
-cd /root/projects/agentic-ai/Security-Guardian/openclaw_security_console/runtime/audit_runs/<run_id>
+cd /root/projects/agentic-ai/security-guardian/openclaw_security_console/runtime/audit_runs/<run_id>
 claude -p '请读取 manifest.json，只输出其中 runId，不要输出其他内容'
 ```
 
@@ -208,11 +210,13 @@ curl -X POST http://127.0.0.1:8511/guardian/final-audit
 
 ## 7. 查看页面
 
-打开：
+打开（下面命令用本机公网 IP 直接拼好地址，复制即用）：
 
-```text
-http://101.47.152.44:8511/dashboard.html
+```bash
+echo "http://$(curl -4 -s --max-time 5 ifconfig.me || curl -4 -s --max-time 5 ipinfo.io/ip):8511/dashboard.html"
 ```
+
+> 取不到公网 IP 就用云控制台上的公网 IP 手动拼 `http://<公网IP>:8511/dashboard.html`；确认安全组已放行 8511 入站。
 
 重点看：
 
@@ -239,7 +243,7 @@ openclaw_security_console/runtime/audit_runs/<run_id>/report.json
 
 ## 8. 验收检查清单
 
-- [ ] Security Guardian 已部署到 `/root/projects/agentic-ai/Security-Guardian`
+- [ ] Security Guardian 已部署到 `/root/projects/agentic-ai/security-guardian`
 - [ ] Claude Code CLI 可用
 - [ ] `OPENCLAW_ROOT` 指向真实 OpenClaw
 - [ ] 服务监听 `0.0.0.0:8511`

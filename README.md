@@ -40,7 +40,7 @@
 | 在终端用 Claude Code 做多文件协同与代码级重构 | [claude-code/](claude-code) |
 | 从零构建 AI 量化投研系统（年报解析 → 研判 → 出图 → HTML 报告） | [ai-quant-cli/](ai-quant-cli) |
 | 让 OpenClaw 经 ACP 调度 Claude Code 巡检 GitHub 密钥泄露 | [github-secret-auditor/](github-secret-auditor) |
-| 让 OpenClaw 用 Claude Code 给自己做上线前安全审计与生产治理 | [Security-Guardian/](Security-Guardian) |
+| 让 OpenClaw 用 Claude Code 给自己做上线前安全审计与生产治理 | [security-guardian/](security-guardian) |
 
 ## 目录结构
 
@@ -99,7 +99,7 @@
 │
 ├── ai-quant-cli/                     # 第18节：从空目录造 AI 量化投研系统（解析 → 研判 → 出图 → HTML 报告）
 ├── github-secret-auditor/            # 第19节：OpenClaw 经 ACP 调度 Claude Code 巡检 GitHub 密钥泄露（夜间代码自愈）
-├── Security-Guardian/                # 第20节：企业级数字员工安全审计与生产治理（OpenClaw 自审计控制台 + Claude Code）
+├── security-guardian/                # 第20节：企业级数字员工安全审计与生产治理（OpenClaw 自审计控制台 + Claude Code）
 ├── claude-code/                      # 第16-17节：Claude Code 深度实战（多文件协同 + 终端级重构）
 ├── xhs-auto-publisher/               # 第12节：云端小红书图文自动发布 Agent（Playwright + 龙虾通知）
 ├── financial-automation/             # 第13节：全自动财务填报与票据识别 Agent（OCR + 飞书 Bitable）

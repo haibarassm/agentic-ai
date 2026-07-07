@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 本文件只管 `Security-Guardian/` 子项目。仓库根 `agentic-ai/CLAUDE.md` 是课程总览，与本文件并存。
+> 本文件只管 `security-guardian/` 子项目。仓库根 `agentic-ai/CLAUDE.md` 是课程总览，与本文件并存。
 
 ## 这个项目是什么
 
@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **智能在 Claude Code 的 agent 循环里，不在脚本里。** `openclaw_security_console/app.py` 是单文件、纯 Python 标准库的 HTTP 服务（无第三方依赖，`pip install` 无对象），只负责采集/脱敏/建工作区/调 Claude/整理报告/兜底。
 
-（本项目是课程仓库 DjangoPeng/agentic-ai 内的正本实现，无独立仓库；部署即克隆 agentic-ai 后进入 `Security-Guardian/` 子目录。）
+（本项目是课程仓库 DjangoPeng/agentic-ai 内的正本实现，无独立仓库；部署即克隆 agentic-ai 后进入 `security-guardian/` 子目录。）
 
 ## 铁律（不可违背）
 
@@ -67,7 +67,7 @@ OpenClaw 真实文件(OPENCLAW_ROOT)
 ## 运行 / 验证
 
 ```bash
-cd Security-Guardian
+cd security-guardian
 chmod +x run_dashboard.sh
 OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh   # 0.0.0.0:8511
 curl -X POST http://127.0.0.1:8511/claude-code/analyze-cloud
@@ -88,4 +88,4 @@ curl -X POST http://127.0.0.1:8511/guardian/final-audit
 
 - **同步契约**：改了 Agent 面向的流程/字段/端点，`README.md`、`lesson20-lab.md`、`lesson20_architecture.md`、`checklists/` 要一起改到一致。
 - **本项目没有 SKILL.md**——它是可运行控制台，不是 OpenClaw Skill，别往根 `CLAUDE.md` 的 Skill contracts 清单里加。
-- **服务器路径是课程约定**：`/root/.openclaw`、`/root/projects/agentic-ai/Security-Guardian`、`http://<公网IP>:8511/dashboard.html` 是部署约定；截图里公网 IP 记得打码。审计页面别长期裸露公网，生产加 IP 白名单/Basic Auth/VPN/SSO。
+- **服务器路径是课程约定**：`/root/.openclaw`、`/root/projects/agentic-ai/security-guardian`、`http://<公网IP>:8511/dashboard.html` 是部署约定；截图里公网 IP 记得打码。审计页面别长期裸露公网，生产加 IP 白名单/Basic Auth/VPN/SSO。

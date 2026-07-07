@@ -42,9 +42,9 @@ Security Guardian + Claude Code 重点检查：
 启动：
 
 ```bash
-# 项目在课程仓库 DjangoPeng/agentic-ai 的 Security-Guardian/ 子目录
+# 项目在课程仓库 DjangoPeng/agentic-ai 的 security-guardian/ 子目录
 git clone https://github.com/DjangoPeng/agentic-ai.git /root/projects/agentic-ai   # 已克隆则 git -C /root/projects/agentic-ai pull
-cd /root/projects/agentic-ai/Security-Guardian
+cd /root/projects/agentic-ai/security-guardian
 chmod +x run_dashboard.sh
 OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh
 ```
@@ -88,10 +88,10 @@ export OPENCLAW_MAX_FILE_BYTES=20000
 0.0.0.0:8511
 ```
 
-访问：
+访问（用你服务器的公网 IP）：
 
 ```text
-http://101.47.152.44:8511/dashboard.html
+http://<你的公网IP>:8511/dashboard.html
 ```
 
 如果 Claude Code 调用方式不是默认的 `claude -p <prompt>`，可以设置：

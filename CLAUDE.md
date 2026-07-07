@@ -17,7 +17,7 @@ Main areas:
 - `claude-code/`: materials about Claude Code itself. `multi-file-refactor/` is the Lesson 17 sandbox that extracts a shared `FeishuClient` from snapshots of `financial-automation` + `CRM-Assistant`.
 - `ai-quant-cli/`: Python CLI that parses A-share annual-report PDFs into structured financials; Claude Code itself performs the risk analysis (no LLM API in code), then scripts render charts and a single-page HTML investment report.
 - `github-secret-auditor/`: OpenClaw Skill with no runnable code; it drives Claude Code over ACP to audit and remediate leaked secrets in an authorized GitHub repo, with OpenClaw handling review, commit/push, and the Feishu report.
-- `Security-Guardian/`: runnable Python-stdlib web console (port 8511, no third-party deps) for pre-release security self-audit of a cloud OpenClaw; it read-only-collects and redacts OpenClaw evidence into a per-run manifest workspace, invokes Claude Code (`claude -p`) to analyze it and return JSON findings, then writes reports and a go/no-go decision — detection only, never auto-remediates production.
+- `security-guardian/`: runnable Python-stdlib web console (port 8511, no third-party deps) for pre-release security self-audit of a cloud OpenClaw; it read-only-collects and redacts OpenClaw evidence into a per-run manifest workspace, invokes Claude Code (`claude -p`) to analyze it and return JSON findings, then writes reports and a go/no-go decision — detection only, never auto-remediates production.
 
 No Cursor rules, `.cursorrules`, or GitHub Copilot instruction file are present at repository root.
 
@@ -246,7 +246,7 @@ No runnable code: this is an OpenClaw Skill driven via ACP, not a local CLI, so 
 ### Security Guardian
 
 ```bash
-cd Security-Guardian
+cd security-guardian
 chmod +x run_dashboard.sh
 OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh   # serves 0.0.0.0:8511
 ```
@@ -258,7 +258,7 @@ curl -X POST http://127.0.0.1:8511/claude-code/analyze-cloud
 curl -X POST http://127.0.0.1:8511/guardian/final-audit
 ```
 
-Python standard library only (no `pip install`). Needs a reachable `claude` CLI (or set `CLAUDE_CODE_COMMAND`); the run calls `claude -p` and refuses to fake a pass (`CC-CALL-FAILED`) if that call fails. Generated run artifacts and `state/` live under `Security-Guardian/openclaw_security_console/` and are gitignored. See `Security-Guardian/CLAUDE.md`, `README.md`, and `lesson20-lab.md`.
+Python standard library only (no `pip install`). Needs a reachable `claude` CLI (or set `CLAUDE_CODE_COMMAND`); the run calls `claude -p` and refuses to fake a pass (`CC-CALL-FAILED`) if that call fails. Generated run artifacts and `state/` live under `security-guardian/openclaw_security_console/` and are gitignored. See `security-guardian/CLAUDE.md`, `README.md`, and `lesson20-lab.md`.
 
 ## Architecture notes
 
@@ -338,4 +338,4 @@ The publisher is a single-machine, single-browser, single-task sequence. Runtime
 
 ### Security Guardian audit flow
 
-`Security-Guardian/openclaw_security_console/app.py` is a single stdlib HTTP server (port 8511). One audit run: read-only collect real OpenClaw evidence (ports/logs/config/skills) under `OPENCLAW_ROOT` with sampling limits and sensitive-path skips → copy into `runtime/audit_runs/<run_id>/evidence/` with copy-time text redaction → write `manifest.json` (allowedRoots, denyPatterns, expectedSchema) + `audit_request.md` → invoke `claude -p` with cwd set to the run dir (Claude reads evidence, returns JSON on stdout only) → Security Guardian writes `report.json` / `report.md`. Detection is decoupled from remediation: the `/guardian/*` endpoints only generate advice (Claude-specific `remediationSteps`/`verification` first, fixed governance templates as fallback), and `/guardian/final-audit` issues a go/no-go that blocks release on any high/critical finding or a failed Claude call (`CC-CALL-FAILED`). Unlike the Skill-only lesson 19, this is a runnable system (like ai-quant-cli) and has no `SKILL.md`. State and run artifacts under `openclaw_security_console/{state,runtime}/` are gitignored.
+`security-guardian/openclaw_security_console/app.py` is a single stdlib HTTP server (port 8511). One audit run: read-only collect real OpenClaw evidence (ports/logs/config/skills) under `OPENCLAW_ROOT` with sampling limits and sensitive-path skips → copy into `runtime/audit_runs/<run_id>/evidence/` with copy-time text redaction → write `manifest.json` (allowedRoots, denyPatterns, expectedSchema) + `audit_request.md` → invoke `claude -p` with cwd set to the run dir (Claude reads evidence, returns JSON on stdout only) → Security Guardian writes `report.json` / `report.md`. Detection is decoupled from remediation: the `/guardian/*` endpoints only generate advice (Claude-specific `remediationSteps`/`verification` first, fixed governance templates as fallback), and `/guardian/final-audit` issues a go/no-go that blocks release on any high/critical finding or a failed Claude call (`CC-CALL-FAILED`). Unlike the Skill-only lesson 19, this is a runnable system (like ai-quant-cli) and has no `SKILL.md`. State and run artifacts under `openclaw_security_console/{state,runtime}/` are gitignored.
