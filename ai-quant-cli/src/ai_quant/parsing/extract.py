@@ -357,12 +357,30 @@ def _detect_company(pdf) -> str:
 
 
 def _detect_period(pdf) -> str:
-    """报告期，如 2025。优先取资产负债表日期的年份，再取汇总表年份。"""
+    """报告期。年报→'2025'；季报/半年报→'2026Q1'/'2026H1'/'2026Q3'（带粒度后缀）。
+
+    季报/半年报用**标题**判定（优先），因为季报 comparative 列含上年末 12-31 日期，
+    会干扰纯日期判定。年报不含「第一季度/半年度/第三季度报告」标题，不会误命中。
+    """
+    # 1. 季报/半年报标题（前 5 页）——年报不会匹配，年报路径不受影响
+    for idx in range(0, min(5, len(pdf.pages))):
+        txt = _page_text(pdf, idx)
+        m = re.search(r"(20\d{2})\s*年\s*第[一一]?\s*季度报告", txt)
+        if m:
+            return f"{m.group(1)}Q1"
+        m = re.search(r"(20\d{2})\s*年\s*第[三三]\s*季度报告", txt)
+        if m:
+            return f"{m.group(1)}Q3"
+        m = re.search(r"(20\d{2})\s*年\s*(?:半年度|中期)报告", txt)
+        if m:
+            return f"{m.group(1)}H1"
+    # 2. 年报：资产负债表日期的年份（原有逻辑，不动）
     for idx in range(0, len(pdf.pages)):
         txt = _page_text(pdf, idx)
         m = re.search(r"(20\d{2})\s*年\s*12\s*月\s*31\s*日", txt)
         if m:
             return m.group(1)
+    # 3. fallback：汇总表「YYYY 年度」
     for idx in range(0, min(30, len(pdf.pages))):
         txt = _page_text(pdf, idx)
         m = re.search(r"(20\d{2})\s*年度", txt)
