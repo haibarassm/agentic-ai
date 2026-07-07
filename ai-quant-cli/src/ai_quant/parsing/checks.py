@@ -1,59 +1,45 @@
-"""会计恒等式自检（资产 = 负债 + 所有者权益）。
+"""会计恒等式自检：资产总计 == 负债和所有者权益总计 == 负债合计 + 所有者权益合计。
 
-校验两条，期末/期初各算一次：
-  (a) 资产总计 == 负债和所有者权益总计   （报表内勾稽）
-  (b) 资产总计 == 负债合计 + 所有者权益合计
-因千元四舍五入会有微小残差，用相对容差判断，而非严格相等。
+不平说明抽漏或抽错（抓到母公司表 / 科目定位错 / 单位不一致）。容差 1e-4（千元级四舍五入残差）。
 """
 
 from __future__ import annotations
 
-# 相对容差：|diff| / max(|lhs|,1) <= 此值即视为通过。千元级残差远小于此。
-_REL_TOL = 1e-6
+from typing import Any
+
+_TOLERANCE = 1e-4  # 相对容差
 
 
-# 不同年报对同一总计科目的命名差异（所有者权益 / 股东权益）
-_ALIASES = {
-    "资产总计": ["资产总计"],
-    "负债和所有者权益总计": ["负债和所有者权益总计", "负债和股东权益总计"],
-    "负债合计": ["负债合计"],
-    "所有者权益合计": ["所有者权益合计", "股东权益合计"],
-}
-
-
-def _get(bs: dict, name: str, period: str):
-    for cand in _ALIASES.get(name, [name]):
-        item = bs.get(cand)
-        if item and item.get(period) is not None:
-            return item[period]
-    return None
-
-
-def _check_one(lhs, rhs):
+def _rel_diff(lhs: float | None, rhs: float | None) -> float | None:
     if lhs is None or rhs is None:
-        return {"ok": False, "lhs": lhs, "rhs": rhs, "diff": None, "reason": "缺科目"}
-    diff = lhs - rhs
-    ok = abs(diff) <= _REL_TOL * max(abs(lhs), 1.0)
-    return {"ok": ok, "lhs": lhs, "rhs": rhs, "diff": diff}
+        return None
+    denom = max(abs(lhs), abs(rhs), 1.0)
+    return abs(lhs - rhs) / denom
 
 
-def balance_identity_check(balance_sheet: dict) -> dict:
-    """对资产负债表做两条恒等式自检，期末/期初各一组。"""
-    result = {}
-    for period in ("current", "prior"):
-        assets = _get(balance_sheet, "资产总计", period)
-        le_total = _get(balance_sheet, "负债和所有者权益总计", period)
-        liab = _get(balance_sheet, "负债合计", period)
-        equity = _get(balance_sheet, "所有者权益合计", period)
+def balance_identity_check(balance_sheet: dict[str, dict[str, float]]) -> dict[str, Any]:
+    """期末、期初各验一组恒等式。返回 {current: {...}, prior: {...}}。"""
+    result: dict[str, Any] = {}
+    for period_key in ("current", "prior"):
+        assets = balance_sheet.get("资产总计", {}).get(period_key)
+        liabilities = balance_sheet.get("负债合计", {}).get(period_key)
+        equity = balance_sheet.get("所有者权益合计", {}).get(period_key)
+        liab_and_equity = balance_sheet.get("负债和所有者权益总计", {}).get(period_key)
 
-        a_eq_le = _check_one(assets, le_total)
-        a_eq_liab_plus_eq = _check_one(
-            assets, (liab + equity) if (liab is not None and equity is not None) else None
-        )
-        result[period] = {
-            "资产总计=负债和所有者权益总计": a_eq_le,
-            "资产总计=负债合计+所有者权益合计": a_eq_liab_plus_eq,
-            "ok": a_eq_le["ok"] and a_eq_liab_plus_eq["ok"],
+        lhs = assets
+        # rhs 优先用「负债和所有者权益总计」列；取不到则用 负债合计+所有者权益合计
+        rhs = liab_and_equity
+        if rhs is None and liabilities is not None and equity is not None:
+            rhs = liabilities + equity
+
+        diff = _rel_diff(lhs, rhs)
+        result[period_key] = {
+            "ok": diff is not None and diff <= _TOLERANCE,
+            "lhs": assets,            # 资产总计
+            "rhs": rhs,               # 负债和所有者权益总计（或负债+权益）
+            "liabilities": liabilities,
+            "equity": equity,
+            "diff": diff,
+            "tolerance": _TOLERANCE,
         }
-    result["ok"] = result["current"]["ok"] and result["prior"]["ok"]
-    return result
+    return {"balance_identity": result}

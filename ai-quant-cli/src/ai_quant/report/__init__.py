@@ -1,5 +1,5 @@
-"""L3 报告层：fan-in 汇编 HTML 投研报告。
+"""L3 报告汇编层：financials + findings + figures → 自包含 HTML。"""
 
-输入：data/parsed/financials.json + analysis/findings.json + build/figures/manifest.json
-产出：reports/report_<period>.html（浏览器可直接打开）。
-"""
+from .build import build_report, load_json
+
+__all__ = ["build_report", "load_json"]

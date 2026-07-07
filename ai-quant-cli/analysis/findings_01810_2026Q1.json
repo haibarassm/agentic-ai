@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "stock_code": "01810",
+    "company": "小米集团（Xiaomi Corporation，港股）",
+    "period": "2026Q1",
+    "currency": "CNY",
+    "unit": "千元",
+    "format": "HK-IFRS",
+    "analyst": "claude-code (L4 manual gate, no LLM API)",
+    "analyzed_at": "2026-07-06",
+    "source": "data/parsed/financials_01810_2026Q1.json（源 PDF: 26Q1_CN_AC.pdf，未經審核中期簡明合併報表）",
+    "caveat": "单季度数据，趋势判断需结合年报；季报未經審核。"
+  },
+  "risk_findings": [
+    {
+      "id": "R1",
+      "title": "营业利润同比 -59.5%、归母净利润 -56.7%，利润下滑远超营收(-10.9%)",
+      "severity": "high",
+      "category": "盈利能力",
+      "summary": "2026Q1 营收 991.4 亿(-10.9%)，但营业利润 53.1 亿(-59.5%)、归母净利润 47.2 亿(-56.7%)。毛利率仅微降 0.83pct(22.0% vs 22.8%)，利润腰斩主因是费用激增(研发 +33.4%、销售 +15.0%)叠加收入下滑。",
+      "narrative": "这是典型的『造车高投入期 + 手机收入放缓』组合。营收下滑 11% 但利润下滑 57%，杠杆放大 5 倍，说明成本端虽相对刚性可控(毛利率基本稳定)，但期间费用(尤其研发 +33% 至 89.5 亿，大概率含小米汽车 SU7 系列的持续投入)对利润形成显著挤压。销售费用 +15% 反映渠道/营销扩张。EPS 从 0.44 降至 0.18 元。需要关注：若手机销量(本季全球出货 33.8 百万台)与汽车交付增速无法覆盖费用增长，全年利润承压。结合年报五年概要(2025 年度利润 415.7 亿、同比 +76%)看，2025 是利润大年，2026Q1 的高基数 + 高投入是下滑主因，趋势性恶化与否需等半年报验证。",
+      "evidence": [
+        {"statement": "income", "item": "营业收入", "period": "current", "value": 99141618.0},
+        {"statement": "income", "item": "营业收入", "period": "prior", "value": 111293337.0},
+        {"statement": "income", "item": "营业利润", "period": "current", "value": 5312645.0},
+        {"statement": "income", "item": "营业利润", "period": "prior", "value": 13125407.0},
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "current", "value": 4723120.0},
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "prior", "value": 10924321.0},
+        {"statement": "income", "item": "研发费用", "period": "current", "value": -8954381.0},
+        {"statement": "income", "item": "研发费用", "period": "prior", "value": -6711708.0}
+      ],
+      "metrics": {
+        "营收增速": "-10.93%",
+        "营业利润增速": "-59.53%",
+        "归母增速": "-56.74%",
+        "毛利率": {"current": "22.00%", "prior": "22.83%"},
+        "研发费用增速": "+33.43%",
+        "销售费用增速": "+14.95%"
+      }
+    },
+    {
+      "id": "R2",
+      "title": "经营活动现金流转负(-17.9 亿)，去年同期为 +45.1 亿，盈利质量单期转弱",
+      "severity": "high",
+      "category": "盈利质量",
+      "summary": "2026Q1 经营活动现金流量净额 -17.9 亿，同比由正(+45.1 亿)转负；与本期净利润 47.3 亿严重背离(经营现金流/净利润 = -0.38)。利润缺乏现金支撑。",
+      "narrative": "单季度经营现金流转负值得警惕。可能与季度内存货/应收占用增加、以及应付账款下降(本期 1049.4 亿 vs 年末 1107.0 亿，-5.2%，对供应商付款增加)有关。结合 R1 利润本就腰斩，经营现金流转负进一步说明本期盈利的现金含金量低。但需注意：单季度现金流波动大(季节性、备货节奏)，不能仅凭一季定调。建议重点跟踪半年报经营现金流是否回正，以及现金流补充资料里『净利润→经营活动现金流』的调节项(营运资本变动)定位。筹资活动由去年同期 +380.8 亿转为 -70.6 亿(去年有融资流入，今年净偿付)，进一步收紧了现金来源。",
+      "evidence": [
+        {"statement": "cash_flow", "item": "经营活动产生的现金流量净额", "period": "current", "value": -1792006.0},
+        {"statement": "cash_flow", "item": "经营活动产生的现金流量净额", "period": "prior", "value": 4509497.0},
+        {"statement": "income", "item": "净利润", "period": "current", "value": 4734577.0},
+        {"statement": "balance_sheet", "item": "应付账款", "period": "current", "value": 104936289.0},
+        {"statement": "cash_flow", "item": "筹资活动产生的现金流量净额", "period": "current", "value": -7059256.0},
+        {"statement": "cash_flow", "item": "筹资活动产生的现金流量净额", "period": "prior", "value": 38077395.0}
+      ],
+      "metrics": {
+        "经营现金流增速": "由+45.1亿转负至-17.9亿",
+        "经营现金流/净利润": "-0.38",
+        "应付账款变动": "-5.22%(对供应商付款增加)"
+      }
+    },
+    {
+      "id": "R3",
+      "title": "应收账款同比大增 +16.7%，与营收下滑背离",
+      "severity": "medium",
+      "category": "应收",
+      "summary": "应收账款(期末)177.8 亿，较年末 152.4 亿增 16.7%；同期营收下滑 10.9%。应收与营收反向，回款边际走弱。",
+      "narrative": "应收账款环比(对年末)+16.7% 与营收同比 -10.9% 形成反向背离，说明本季赊销增加或回款放缓。不过港版『貿易應收款項及應收票據』口径含应收票据，且季末 vs 年末、单季营收 vs 期末余额的口径不完全可比，幅度需谨慎解读。绝对额 177.8 亿相对季度营收 991.4 亿(占比 17.9%)仍处合理区间，非激进确认的强信号。建议结合半年报应收账龄与减值准备综合判断。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "应收账款", "period": "current", "value": 17782583.0},
+        {"statement": "balance_sheet", "item": "应收账款", "period": "prior", "value": 15239877.0},
+        {"statement": "income", "item": "营业收入", "period": "current", "value": 99141618.0}
+      ],
+      "metrics": {
+        "应收账款增速": "+16.69%",
+        "营收增速": "-10.93%",
+        "应收/季营收": "17.94%"
+      }
+    },
+    {
+      "id": "P1",
+      "title": "资产负债表稳健：低杠杆 46.4%、权益持平、存货略降",
+      "severity": "low",
+      "category": "偿债",
+      "summary": "资产负债率 46.4%(vs 年末 47.6%)，所有者权益 2660.3 亿基本持平，存货 781.9 亿环比 -3.5%。资产负债表未随利润下滑而恶化。",
+      "narrative": "尽管利润和现金流单期走弱，小米的资产负债表依然稳健：杠杆率 <50%、权益稳定、存货小幅去化(健康信号)。流动性方面，货币资金 263.3 亿单独看对有息负债 353.7 亿的覆盖为 0.75×，但港版报表将『定期銀行存款』单列(非流动 889.1 亿 + 流动 534.4 亿 = 1423.5 亿)，这类准现金资产加上货币资金合计 1686.8 亿，是有息负债的 4.77 倍——实际流动性极充裕。这是港股 IFRS 列报与 A 股的差异(定期存款不并入货币资金)，分析时必须把定期存款加回，否则会低估偿债能力。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 496747684.0},
+        {"statement": "balance_sheet", "item": "负债合计", "period": "current", "value": 230713760.0},
+        {"statement": "balance_sheet", "item": "所有者权益合计", "period": "current", "value": 266033924.0},
+        {"statement": "balance_sheet", "item": "存货", "period": "current", "value": 78186312.0},
+        {"statement": "balance_sheet", "item": "存货", "period": "prior", "value": 80989452.0},
+        {"statement": "balance_sheet", "item": "货币资金", "period": "current", "value": 26334483.0}
+      ],
+      "metrics": {
+        "资产负债率": {"current": "46.43%", "prior": "47.58%"},
+        "权益变动": "-0.11%",
+        "存货变动": "-3.46%",
+        "准现金(货币资金+定期存款)": "约1686.8亿",
+        "准现金/有息负债": "4.77×"
+      }
+    }
+  ],
+  "cross_checks": [
+    {
+      "id": "X1",
+      "name": "资产负债恒等式(资产 = 负债 + 所有者权益)",
+      "verdict": "pass",
+      "summary": "期末 4967.5 亿 = 负债 2307.1 亿 + 权益 2660.3 亿，diff=0.0；期初(2025年末) 5081.0 亿 同样平。HK-IFRS 报表内部自洽。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 496747684.0},
+        {"statement": "balance_sheet", "item": "负债合计", "period": "current", "value": 230713760.0},
+        {"statement": "balance_sheet", "item": "所有者权益合计", "period": "current", "value": 266033924.0}
+      ]
+    },
+    {
+      "id": "X2",
+      "name": "净利润 vs 经营现金流(盈利真实性)",
+      "verdict": "warn",
+      "summary": "经营现金流 -17.9 亿 < 净利润 47.3 亿(比值为 -0.38)，单期利润无现金支撑。或为季节性/营运资本占用，需半年报验证，见 R2。",
+      "evidence": [
+        {"statement": "cash_flow", "item": "经营活动产生的现金流量净额", "period": "current", "value": -1792006.0},
+        {"statement": "income", "item": "净利润", "period": "current", "value": 4734577.0}
+      ]
+    },
+    {
+      "id": "X3",
+      "name": "营收增速 vs 应收账款增速",
+      "verdict": "warn",
+      "summary": "营收 -10.9% vs 应收 +16.7%，反向背离 27.6pct。口径不完全可比(季末 vs 年末)，幅度需谨慎，见 R3。",
+      "evidence": [
+        {"statement": "income", "item": "营业收入", "period": "current", "value": 99141618.0},
+        {"statement": "balance_sheet", "item": "应收账款", "period": "current", "value": 17782583.0}
+      ]
+    },
+    {
+      "id": "X4",
+      "name": "净利润拆解一致性(归母 + 少数股东损益 = 净利润)",
+      "verdict": "pass",
+      "summary": "归母 47.23 亿 + 少数股东损益 0.11 亿 = 47.35 亿 = 净利润，完全一致。",
+      "evidence": [
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "current", "value": 4723120.0},
+        {"statement": "income", "item": "少数股东损益", "period": "current", "value": 11457.0},
+        {"statement": "income", "item": "净利润", "period": "current", "value": 4734577.0}
+      ]
+    },
+    {
+      "id": "X5",
+      "name": "实际税率合理性",
+      "verdict": "pass",
+      "summary": "利润总额 57.3 亿、所得税 9.9 亿，实际税率 17.35%(2025Q1 为 17.28%)，两年一致、合理。",
+      "evidence": [
+        {"statement": "income", "item": "利润总额", "period": "current", "value": 5728707.0},
+        {"statement": "income", "item": "所得税费用", "period": "current", "value": -994130.0}
+      ],
+      "metrics": {"实际税率": "17.35%"}
+    },
+    {
+      "id": "X6",
+      "name": "现金流勾稽(经营+投资+筹资 = 现金净变动)",
+      "verdict": "pass",
+      "summary": "经营(-17.9) + 投资(+83.3) + 筹资(-70.6) = -5.2 亿，与现金净减少额 5.24 亿完全一致；汇率影响 -0.56 亿单列。勾稽无误。",
+      "evidence": [
+        {"statement": "cash_flow", "item": "经营活动产生的现金流量净额", "period": "current", "value": -1792006.0},
+        {"statement": "cash_flow", "item": "投资活动产生的现金流量净额", "period": "current", "value": 8326889.0},
+        {"statement": "cash_flow", "item": "筹资活动产生的现金流量净额", "period": "current", "value": -7059256.0}
+      ],
+      "metrics": {"三大活动加总": -524373.0, "现金净减少额": 524373.0}
+    },
+    {
+      "id": "X7",
+      "name": "短期偿债能力(准现金 / 有息负债)",
+      "verdict": "pass",
+      "summary": "货币资金 263.3 亿 + 定期存款约 1423.5 亿 = 准现金 1686.8 亿，是有息负债(短借 103.6 + 长借 250.1 = 353.7 亿)的 4.77×。把 IFRS 单列的定期存款加回后，流动性极充裕。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "货币资金", "period": "current", "value": 26334483.0},
+        {"statement": "balance_sheet", "item": "短期借款", "period": "current", "value": 10360504.0},
+        {"statement": "balance_sheet", "item": "长期借款", "period": "current", "value": 25006733.0}
+      ],
+      "metrics": {"有息负债": 35367237.0, "准现金/有息负债": "4.77×(含定期存款)"}
+    }
+  ],
+  "overall": "小米集团 2026Q1 是一份『利润腰斩 + 经营现金流转负』的承压季报，但资产负债表依然稳健。核心矛盾：营收仅 -10.9%，但营业利润 -59.5%、归母净利润 -56.7%，主因是造车相关的高强度投入(研发费用 +33.4% 至 89.5 亿)叠加手机业务收入放缓；同时经营现金流由 +45.1 亿转为 -17.9 亿，与净利润严重背离，单期盈利现金含金量低。不过三点支撑：①毛利率基本稳定(22.0% vs 22.8%)，成本端可控；②资产负债率仅 46.4%、权益持平、存货小幅去化；③把 IFRS 单列的定期存款(1423.5 亿)加回，准现金达 1686.8 亿，是有息负债 4.77 倍，流动性无虞。这是高投入扩张期(汽车)的阵痛，而非资产负债表恶化——但需用半年报验证经营现金流是否回正、费用率是否见顶。注：季报未經審核、单季度数据波动大，结论待全年数据校准。"
+}

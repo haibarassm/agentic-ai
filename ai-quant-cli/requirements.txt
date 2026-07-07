@@ -1,11 +1,14 @@
-# L1 解析（阶段 2 现场定型；pdfplumber 优先，必要时退到 PyMuPDF）
+# L1 解析（A 股 CAS：pdfplumber 优先）
 pdfplumber
-# PyMuPDF
 
-# L2 出图（阶段 4）
+# L1 解析（港版字体损坏 PDF：fitz 取数字+坐标，OCR 取标签）
+pymupdf
+rapidocr-onnxruntime
+
+# L2 出图
 matplotlib
 
-# L3 报告（阶段 5）
+# L3 报告
 Jinja2
 
-# 铁律：不引入任何 LLM SDK / 在线服务。
+# 铁律：不引入任何 LLM SDK / 在线服务。OCR 是本地确定性推理，非在线 LLM。

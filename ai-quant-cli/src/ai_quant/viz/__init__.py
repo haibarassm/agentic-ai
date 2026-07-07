@@ -1,5 +1,5 @@
-"""L2 出图层：读 financials.json，渲染趋势/结构图。
+"""L2 出图层：读 financials.json 渲染图表 PNG + manifest.json。"""
 
-产出契约：build/figures/*.png + build/figures/manifest.json
-只依赖 L1 产物，与 L4 研判并行、互不依赖。
-"""
+from .charts import render_all_figures, setup_chinese_font
+
+__all__ = ["render_all_figures", "setup_chinese_font"]

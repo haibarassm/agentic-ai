@@ -1,5 +1,5 @@
-"""L5 编排层：一键重跑。
+"""L5 流水线编排：L1→L2→L4闸门→L3。"""
 
-硬约束：L1 最先、L3 最后；中间 L2 出图与 L4 研判并行。
-进 L3 前做闸门检查：analysis/findings.json 是否就位，缺则明确提示并停下。
-"""
+from .run import L4GateError, PipelineResult, run_pipeline
+
+__all__ = ["run_pipeline", "PipelineResult", "L4GateError"]

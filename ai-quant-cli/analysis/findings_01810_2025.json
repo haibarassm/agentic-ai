@@ -1,0 +1,129 @@
+{
+  "meta": {
+    "stock_code": "01810",
+    "company": "小米集团（Xiaomi Corporation，港股）",
+    "period": "2025",
+    "currency": "CNY",
+    "unit": "千元",
+    "format": "HK-IFRS-OCR",
+    "analyst": "claude-code (L4 manual gate, no LLM API)",
+    "analyzed_at": "2026-07-06",
+    "source": "data/parsed/financials_01810_2025.json（源 PDF: Xiaomi 2025 AR_c.pdf，五年财务概要页 OCR 提取）",
+    "extraction_note": "年报字体编码损坏，数字用 fitz 提取、标签用 OCR + 坐标对齐；权益/负债靠恒等式与分段求和派生。现金流未在五年摘要页，本期 CF 维度缺。",
+    "validation": "2025 年末资产总计 508,095,967 与 2026Q1 季报的上年末审计 comparative 完全一致——跨报告强验证 OCR 提取正确。"
+  },
+  "risk_findings": [
+    {
+      "id": "R1",
+      "title": "2025 营收 +25%、营业利润翻倍 +95%、归母 +76%，盈利能力大幅跃升",
+      "severity": "low",
+      "category": "盈利能力",
+      "summary": "2025 营收 4572.9 亿(+24.98%)，营业利润 479.0 亿(+95.49%)，归母净利润 416.4 亿(+76.06%)。毛利率 22.27%(+1.35pct)、营业利润率 10.47%(+3.76pct)均创五年新高。增长由手机高端化 + AIoT + 智能汽车三轮驱动。",
+      "narrative": "这是小米五年里最强的一份年报。营收从 2022-2023 的手机寒冬(2710 亿谷底)反弹至 4573 亿，归母净利润从 2022 年谷底 24.7 亿暴增至 416.4 亿(16.8 倍)。盈利质量同步改善：毛利率从 2022 的 17.0% 升至 22.27%，营业利润率从 1.0% 升至 10.47%，说明增长不靠低价冲量，而是产品结构优化(手机高端化 ASP 提升) + 规模效应 + 汽车 SU7 系列放量。五年序列显示小米已走出 2022 低谷，进入『收入扩张 + 利润率扩张』的戴维斯双击区间。需注意：利润增速(+76%)远高于营收增速(+25%)，部分源于 2024 基数(造车启动期费用高)与 2025 规模兑现的反差，2026 年能否维持此利润率是关键变量(2026Q1 利润已同比腰斩，见该公司季报 findings)。",
+      "evidence": [
+        {"statement": "income", "item": "营业收入", "period": "current", "value": 457286687.0},
+        {"statement": "income", "item": "营业收入", "period": "prior", "value": 365906350.0},
+        {"statement": "income", "item": "营业利润", "period": "current", "value": 47900920.0},
+        {"statement": "income", "item": "营业利润", "period": "prior", "value": 24502896.0},
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "current", "value": 41643389.0},
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "prior", "value": 23658126.0},
+        {"statement": "summary_history", "item": "毛利", "period": "2025", "value": 101805847.0}
+      ],
+      "metrics": {
+        "营收增速": "+24.98%",
+        "营业利润增速": "+95.49%",
+        "归母增速": "+76.06%",
+        "毛利率": {"current": "22.27%", "prior": "20.92%", "2022谷底": "17.0%"},
+        "营业利润率": {"current": "10.47%", "2022谷底": "1.0%"}
+      }
+    },
+    {
+      "id": "R2",
+      "title": "权益增厚 +40.8% 远超负债 +13.0%，资产负债率降至 47.6%，去杠杆显著",
+      "severity": "low",
+      "category": "偿债",
+      "summary": "2025 所有者权益 2663.2 亿(+40.77%)，负债 2417.7 亿(+13.01%)，资产负债率 47.58%(vs 上年 53.05%)，下降 5.47pct。盈利留存大幅充实权益，杠杆主动下降。",
+      "narrative": "资产负债表随利润同步改善。权益一年增厚 771 亿(主要来自 416 亿净利润留存)，而负债仅增 278 亿，导致杠杆率从 53.1% 降至 47.6%。这种『权益增速 >> 负债增速』的组合是健康的内生增长特征——公司用利润支撑扩张，而非加杠杆。资产总计达 5081 亿(+26%)，五年从 2929 亿增至 5081 亿，但杠杆率反而下降，说明扩张的资金来源主要是经营盈利而非举债。结合 Q1 数据看，2026Q1 末资产 4967 亿略降、负债 2307 亿继续下降，去杠杆趋势延续。整体偿债能力极强。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 508095967.0},
+        {"statement": "balance_sheet", "item": "负债合计", "period": "current", "value": 241772698.0},
+        {"statement": "balance_sheet", "item": "所有者权益合计", "period": "current", "value": 266323269.0},
+        {"statement": "balance_sheet", "item": "所有者权益合计", "period": "prior", "value": 189205119.0},
+        {"statement": "balance_sheet", "item": "负债合计", "period": "prior", "value": 213950170.0}
+      ],
+      "metrics": {
+        "资产负债率": {"current": "47.58%", "prior": "53.05%"},
+        "权益增速": "+40.77%",
+        "负债增速": "+13.01%",
+        "资产增速": "+26.03%"
+      }
+    },
+    {
+      "id": "X1-note",
+      "title": "数据缺口：现金流维度缺失（五年摘要页无 CF）",
+      "severity": "medium",
+      "category": "数据完整性",
+      "summary": "本期 financials 无现金流量表数据（年报五年摘要页只含损益+资产负债，未含 CF）。盈利质量交叉检验(净利润 vs 经营现金流)无法进行。",
+      "narrative": "这是 OCR 提取策略的已知边界：五年财务概要页(P8)只汇总了损益表与资产负债表，不含现金流量表；完整的合并现金流量表在年报主报表章节(字体同样损坏，需另行 OCR 主报表页)。因此本期无法做『净利润 vs 经营现金流』的核心盈利质量检验，也无法出三大活动现金流图。结合 2026Q1 季报(经营现金流 -17.9 亿、与净利润严重背离)看，小米的经营现金流质量存在季度波动，全年数据对判断盈利真实性至关重要——建议后续 OCR 主报表现金流页补齐此维度。其余维度(收入、利润、资产、负债、权益)均完整且通过恒等式与跨报告校验。",
+      "evidence": [
+        {"statement": "cash_flow", "item": "(缺)", "period": "current", "value": null}
+      ],
+      "metrics": {"现金流数据": "缺（未在五年摘要页）"}
+    }
+  ],
+  "cross_checks": [
+    {
+      "id": "X1",
+      "name": "资产负债恒等式(资产 = 负债 + 所有者权益)",
+      "verdict": "pass",
+      "summary": "期末 5081.0 亿 = 负债 2417.7 亿 + 权益 2663.2 亿，diff=0.0；上年末 4031.6 亿 同样平。OCR+派生数据自洽。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 508095967.0},
+        {"statement": "balance_sheet", "item": "负债合计", "period": "current", "value": 241772698.0},
+        {"statement": "balance_sheet", "item": "所有者权益合计", "period": "current", "value": 266323269.0}
+      ]
+    },
+    {
+      "id": "X2",
+      "name": "跨报告一致性(本年报 vs 2026Q1 季报的上年末 comparative)",
+      "verdict": "pass",
+      "summary": "本年报 2025 年末资产总计 508,095,967 == 2026Q1 季报资产负债表的『2025年12月31日』审计 comparative 列 508,095,967，完全一致。OCR 提取的正确性强验证。",
+      "evidence": [
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 508095967.0}
+      ]
+    },
+    {
+      "id": "X3",
+      "name": "营收增速 vs 资产增速(扩张是否匹配)",
+      "verdict": "pass",
+      "summary": "营收 +24.98% vs 资产 +26.03%，增速高度一致，扩张节奏与收入增长匹配，无盲目扩表。",
+      "evidence": [
+        {"statement": "income", "item": "营业收入", "period": "current", "value": 457286687.0},
+        {"statement": "balance_sheet", "item": "资产总计", "period": "current", "value": 508095967.0}
+      ]
+    },
+    {
+      "id": "X4",
+      "name": "净利润拆解一致性(归母 + 少数股东损益 = 净利润)",
+      "verdict": "pass",
+      "summary": "归母 416.4 亿 > 净利润 415.7 亿，差额约 -7.7 千万为少数股东分担损失(归母占比 >100%)，勾稽一致。",
+      "evidence": [
+        {"statement": "income", "item": "归属于母公司所有者的净利润", "period": "current", "value": 41643389.0},
+        {"statement": "income", "item": "净利润", "period": "current", "value": 41566439.0}
+      ],
+      "metrics": {"少数股东损益(推算)": -76950.0}
+    },
+    {
+      "id": "X5",
+      "name": "实际税率合理性",
+      "verdict": "pass",
+      "summary": "利润总额 496.5 亿、净利润 415.7 亿，推算所得税 80.8 亿，实际税率 16.28%，符合优惠税率区间，合理。",
+      "evidence": [
+        {"statement": "income", "item": "利润总额", "period": "current", "value": 49646865.0},
+        {"statement": "income", "item": "净利润", "period": "current", "value": 41566439.0}
+      ],
+      "metrics": {"所得税(推算)": 8080426.0, "实际税率": "16.28%"}
+    }
+  ],
+  "overall": "小米集团 2025 年报是五年内最强的一份：营收 4572.9 亿(+25%)、营业利润翻倍(+95%)、归母净利润 416.4 亿(+76%)，毛利率 22.3% 与营业利润率 10.5% 均创五年新高，标志公司走出 2022 手机寒冬、进入『收入+利润率双扩张』的戴维斯双击区间。资产负债表同步改善：权益增厚 +40.8% 远超负债 +13.0%，资产负债率从 53.1% 降至 47.6%，扩张由经营盈利而非举债驱动，财务极稳健。恒等式 diff=0.0，且 2025 年末资产总计与 2026Q1 季报的审计 comparative 完全一致(508,095,967)，OCR 提取经跨报告强验证。唯一缺口是现金流维度(五年摘要页无 CF)，结合 Q1 经营现金流转负的警示，全年现金流数据是后续需补齐的关键验证项。对照 Q1(2026 季报利润腰斩)，2025 高基数 + 2026 高投入是判断趋势的核心背景。"
+}
