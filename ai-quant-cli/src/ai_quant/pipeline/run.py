@@ -42,6 +42,29 @@ class PipelineResult:
     period: str
 
 
+def _resolve_financials(parsed_dir: Path, code: str, period: str | None = None) -> Path | None:
+    """定位 financials：优先 financials_<code>_<period>.json，再 glob financials_<code>*.json 取最新，再 code-only。"""
+    if period:
+        p = parsed_dir / f"financials_{code}_{period}.json"
+        if p.exists():
+            return p
+    candidates = sorted(parsed_dir.glob(f"financials_{code}*.json"),
+                        key=lambda f: f.stat().st_mtime, reverse=True)
+    if candidates:
+        return candidates[0]
+    legacy = parsed_dir / f"financials_{code}.json"
+    return legacy if legacy.exists() else None
+
+
+def _resolve_findings(findings_dir: Path, code: str, period: str) -> Path:
+    """findings 按 period 匹配，退回 code-only 旧命名。"""
+    if period and period != "unknown":
+        p = findings_dir / f"findings_{code}_{period}.json"
+        if p.exists():
+            return p
+    return findings_dir / f"findings_{code}.json"
+
+
 def _find_pdf_for_code(data_dir: Path, code: str) -> Path | None:
     """按 code 猜测 PDF 文件名（data/<code>*.pdf 或 data/*<关键词>*.pdf）。"""
     candidates = sorted(data_dir.glob(f"*{code}*.pdf"))
@@ -62,6 +85,7 @@ def run_pipeline(
     skip_parse: bool = False,
     skip_figures: bool = False,
     generated_at: str = "",
+    period: str | None = None,
 ) -> PipelineResult:
     """跑完整流水线。
 
@@ -82,14 +106,13 @@ def run_pipeline(
     figures_dir.mkdir(parents=True, exist_ok=True)
     reports_dir.mkdir(parents=True, exist_ok=True)
 
-    financials_path = parsed_dir / f"financials_{code}.json"
-    findings_path = findings_dir / f"findings_{code}.json"
+    financials_path = _resolve_financials(parsed_dir, code, period)
     manifest_path = figures_dir / "manifest.json"
 
     # ---- L1 解析 ----
     if skip_parse:
-        if not financials_path.exists():
-            raise FileNotFoundError(f"--skip-parse 但 {financials_path} 不存在")
+        if financials_path is None:
+            raise FileNotFoundError(f"--skip-parse 但 data/parsed/ 下没有 financials_{code}*.json")
         print(f"[L1] skip，复用 {financials_path.relative_to(root)}")
         fin = json.loads(financials_path.read_text(encoding="utf-8"))
     else:
@@ -99,13 +122,12 @@ def run_pipeline(
             raise FileNotFoundError(f"找不到 {code} 对应的 PDF，请用 --pdf 指定")
         print(f"[L1] 解析 {Path(pdf_path).name} ...")
         fin = extract_financials(Path(pdf_path), stock_code=code)
-        financials_path.write_text(json.dumps(fin, ensure_ascii=False, indent=2), encoding="utf-8")
         code = fin["meta"]["stock_code"] or code
-        # code 可能因解析被校正，重新定位 findings 路径
-        findings_path = findings_dir / f"findings_{code}.json"
-        financials_path = parsed_dir / f"financials_{code}.json"
-        if not financials_path.exists():
-            financials_path.write_text(json.dumps(fin, ensure_ascii=False, indent=2), encoding="utf-8")
+        period_now = fin["meta"].get("period", "")
+        # 文件名带 period（港版多报告共存）；A股 period 可空则退回 code-only 命名
+        fname = f"financials_{code}_{period_now}.json" if period_now else f"financials_{code}.json"
+        financials_path = parsed_dir / fname
+        financials_path.write_text(json.dumps(fin, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # 恒等式自检（L1 内置，这里只汇报）
     chk = fin.get("checks", {}).get("balance_identity", {})
@@ -114,6 +136,9 @@ def run_pipeline(
     print(f"[L1] 恒等式自检：期末 {'✅' if cur_ok else '❌'}  期初 {'✅' if pri_ok else '❌'}")
 
     period = fin.get("meta", {}).get("period", "unknown")
+
+    # findings 按 period 匹配：findings_<code>_<period>.json，退回 findings_<code>.json（A股旧命名）
+    findings_path = _resolve_findings(findings_dir, code, period)
 
     # ---- L2 出图 ----
     if skip_figures:

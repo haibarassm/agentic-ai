@@ -1,8 +1,10 @@
-# --- 年报 PDF：默认不入库，但附两份样例年报 ---
+# --- 年报 PDF：默认不入库，但附样例年报（A 股 + 港股）---
 data/*.pdf
 data/*.PDF
 !data/宁德时代2025年年度报告.pdf
 !data/比亚迪2025年年度报告.pdf
+!data/Xiaomi 2025 AR_c.pdf
+!data/26Q1_CN_AC.pdf
 
 # --- 产物目录：不入库 ---
 build/

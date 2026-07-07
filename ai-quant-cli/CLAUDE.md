@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 铁律（不可违背）
 
 1. **分析判断由 Claude Code 亲自做，代码不碰判断。** 财务风险研判、三表勾稽结论由我直接读 `financials.json` 后产出成 `analysis/findings_<code>.json`；Python 脚本只做解析、出图、汇编。
-2. **任何脚本里都不调用大模型 API**，不引入 LLM SDK / 在线服务（`requirements.txt` 只有 pdfplumber / matplotlib / Jinja2）。
+2. **任何脚本里都不调用大模型 API**，不引入 LLM SDK / 在线服务（`requirements.txt` 只有 pdfplumber / matplotlib / Jinja2 / pymupdf / rapidocr-onnxruntime，全部确定性或本地 OCR）。
 3. **L4 是人工闸门，pipeline 进 L3 前必须检查 `findings_<code>.json` 就位**：缺则报错停下（exit code 2），绝不静默出半成品报告。L1/L2 的确定性产物可以先生成，但报告这一步被闸门挡住。
 4. 每条研判结论必须挂 `evidence`（指向 `报表 + 科目 + 期间 + 值`），保证可追溯。
 5. 年报 PDF：仓库已附宁德(300750) / 比亚迪(002594) 两份 2025 年报样例；`data/parsed/`、`build/` 视为生成产物（不入库，从 PDF 重跑即得）；`analysis/findings_*.json` 是 L4 人工研判产物，**入库**（是核心交付物，非脚本生成）。
@@ -92,17 +92,39 @@ unset ALL_PROXY all_proxy
 pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # 单层入口
-python scripts/parse_report.py  data/<年报>.pdf [--code 300750]   # L1 → financials_<code>.json + 恒等式自检
+python scripts/parse_report.py  data/<A股年报>.pdf [--code 300750]   # L1 A 股 → financials_<code>.json
+python scripts/parse_hk_report.py data/<港股文本PDF>.pdf --code 01810  # L1 港版 HK-IFRS（pdfplumber 干净）
+python scripts/parse_ocr_report.py data/<字体损坏PDF>.pdf --code 01810 --summary-page 8  # L1 OCR（fitz+rapidocr）
 python scripts/make_figures.py   [--code 300750]                  # L2 → build/figures/*.png + manifest.json
-python scripts/build_report.py   [--code 300750]                  # L3 → build/reports/report_<code>_<period>_<ts>.html
+python scripts/build_report.py   [--code 300750]                  # L3 → build/reports/*.html
+python scripts/accumulate_reports.py --code 01810                 # 路 B 拼接同公司多份 → analysis/stitched_<code>.json
 
 # 一键全流程（L5）
 python scripts/run_pipeline.py --code 300750 --pdf data/宁德时代2025年年度报告.pdf   # 全链路
+python scripts/run_pipeline.py --code 01810 --period 2025 --skip-parse               # 多期共存时用 --period 选期
 python scripts/run_pipeline.py --code 300750 --skip-parse --skip-figures             # 只补 L3（findings 已就位）
 ```
 > 一键编排在进 L3 前做 **L4 闸门**：按 code 定位 `analysis/findings_<code>.json`，缺失则 exit code 2 停下、不出报告。L4 研判由分析者人工产出，编排不自动生成。
 >
 > **多公司**：解析层动态识别公司名/单位/期；股票代码封面识别不到时 `--code` 显式指定（比亚迪 `--code 002594`）。已实测宁德(300750) 与比亚迪(002594) 两家可并存重跑，恒等式均 diff=0.0。
+
+## 多报告格式支持（L1 三种解析器）
+
+同公司多期、跨格式共存：文件名 `financials_<code>_<period>.json`（A 股旧命名 `financials_<code>.json` 视为 period 隐式）；findings 同理 `findings_<code>_<period>.json`。pipeline 用 `--period` 选期，`_resolve_financials` / `_resolve_findings` 自动回退。
+
+| 格式 | 解析器 | 入口 CLI | 适用 |
+|---|---|---|---|
+| A 股 CAS | `parsing/extract.py` | `parse_report.py` | 宁德/比亚迪等 A 股年报（合并/母公司双表、编号锚点、千元） |
+| 港版 HK-IFRS（文本可提取） | `parsing/hk_extract.py` | `parse_hk_report.py` | 小米季报等繁体 IFRS PDF（pdfplumber 干净）—— 繁体科目别名归一、括号负数、借款按流動/非流動分段、period 带粒度后缀(2026Q1) |
+| 港版（字体损坏） | `parsing/ocr_extract.py` | `parse_ocr_report.py --summary-page N` | 小米年报等字体缺 ToUnicode、pdfplumber 出 cid 乱码的 PDF |
+
+**OCR 解析器的可靠性关键**（`ocr_extract.py`）：数字字体(DIN)映射完好→fitz 取数字+坐标；中文标签字体损坏→rapidocr 取标签+坐标；按 y 行对齐、按 x 分列。坐标尺度统一（fitz PDF点 vs OCR 渲染像素 ÷ 200/72）。标签做繁→简归一 + 关键词容错（OCR 常误识擁→摊、權→槿）；权益靠恒等式派生、负债靠「非流动负债+流动负债」求和（避免依赖 OCR 必错的「權益/負債總額」标签）。**强验证**：OCR 出的 2025 年末资产总计与季报的上年末审计 comparative 完全一致。
+
+## 跨报告拼接（路 B，`accumulate.py`）
+
+`scripts/accumulate_reports.py --code <code>` 把同公司多份 financials 按期缝合成全科目时间序列（路 A 是年报内嵌 summary_history，只覆盖头部指标；路 B 覆盖全科目）。
+- period 粒度：年度 `2025`、季报 `2026Q1`、半年报 `2026H1`；按 (年, 期末月) 排序。
+- **prior 按报表类型区分**（季报勾稽规则）：资产负债表 prior = 上年度末（标年度 period `2025`），利润表/现金流量表 prior = 上年同期（标 `2025Q1`）。这样年报+季报拼接时，季报 BS 的「上年度末」与年报当期正确去重合并，不会污染出假的 `2025Q1` 资产时点。
 
 ## 解析层实测要点（L1 落定）
 

@@ -29,6 +29,7 @@ def main() -> int:
     ap.add_argument("--pdf", default=None, help="年报 PDF 路径（不指定则在 data/ 下按 code 查找）")
     ap.add_argument("--skip-parse", action="store_true", help="复用已有 financials，跳过 L1")
     ap.add_argument("--skip-figures", action="store_true", help="复用已有 figures，跳过 L2")
+    ap.add_argument("--period", default=None, help="指定报告期（如 2025 / 2026Q1），多家/多期共存时选它")
     args = ap.parse_args()
 
     ts = datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds")
@@ -42,6 +43,7 @@ def main() -> int:
             skip_parse=args.skip_parse,
             skip_figures=args.skip_figures,
             generated_at=ts,
+            period=args.period,
         )
     except L4GateError as e:
         print(f"\n❌ 流水线在 L4 闸门停下（这是设计内的安全行为）：\n{e}", file=sys.stderr)
