@@ -17,6 +17,7 @@ Main areas:
 - `claude-code/`: materials about Claude Code itself. `multi-file-refactor/` is the Lesson 17 sandbox that extracts a shared `FeishuClient` from snapshots of `financial-automation` + `CRM-Assistant`.
 - `ai-quant-cli/`: Python CLI that parses A-share annual-report PDFs into structured financials; Claude Code itself performs the risk analysis (no LLM API in code), then scripts render charts and a single-page HTML investment report.
 - `github-secret-auditor/`: OpenClaw Skill with no runnable code; it drives Claude Code over ACP to audit and remediate leaked secrets in an authorized GitHub repo, with OpenClaw handling review, commit/push, and the Feishu report.
+- `Security-Guardian/`: runnable Python-stdlib web console (port 8511, no third-party deps) for pre-release security self-audit of a cloud OpenClaw; it read-only-collects and redacts OpenClaw evidence into a per-run manifest workspace, invokes Claude Code (`claude -p`) to analyze it and return JSON findings, then writes reports and a go/no-go decision — detection only, never auto-remediates production.
 
 No Cursor rules, `.cursorrules`, or GitHub Copilot instruction file are present at repository root.
 
@@ -38,7 +39,7 @@ Chapter → directory:
 | 16–17 | `claude-code/` | Claude Code deep practice; 17 = `multi-file-refactor/` |
 | 18 | `ai-quant-cli/` | A-share annual-report → financials → risk analysis → HTML report |
 | 19 | `github-secret-auditor/` | OpenClaw Skill via ACP to audit/remediate leaked GitHub secrets |
-| 20 | (not yet landed) | Night self-heal; enterprise governance |
+| 20 | `Security-Guardian/` | OpenClaw pre-release security self-audit console (runnable, port 8511) |
 
 When a request references "第N节" / "lesson N" / "L17" / "ch17", map it through this table.
 
@@ -242,6 +243,23 @@ L4 risk analysis (`analysis/findings_<code>.json`) is produced by Claude Code it
 
 No runnable code: this is an OpenClaw Skill driven via ACP, not a local CLI, so there is nothing to `pip install`. See `github-secret-auditor/README.md` and `github-secret-auditor/lesson19-lab.md` for the deploy → ACP handshake → orchestrated audit flow, and `github-secret-auditor/CLAUDE.md` for the Skill contract.
 
+### Security Guardian
+
+```bash
+cd Security-Guardian
+chmod +x run_dashboard.sh
+OPENCLAW_ROOT=/root/.openclaw CLAUDE_CODE_TIMEOUT=300 ./run_dashboard.sh   # serves 0.0.0.0:8511
+```
+
+Trigger a real audit run, then the governance / final-audit steps, via the dashboard or curl:
+
+```bash
+curl -X POST http://127.0.0.1:8511/claude-code/analyze-cloud
+curl -X POST http://127.0.0.1:8511/guardian/final-audit
+```
+
+Python standard library only (no `pip install`). Needs a reachable `claude` CLI (or set `CLAUDE_CODE_COMMAND`); the run calls `claude -p` and refuses to fake a pass (`CC-CALL-FAILED`) if that call fails. Generated run artifacts and `state/` live under `Security-Guardian/openclaw_security_console/` and are gitignored. See `Security-Guardian/CLAUDE.md`, `README.md`, and `lesson20-lab.md`.
+
 ## Architecture notes
 
 ### Runtime and configuration pattern
@@ -317,3 +335,7 @@ The publisher is a single-machine, single-browser, single-task sequence. Runtime
 ### Shared FeishuClient (Lesson 17) and the snapshot rule
 
 `claude-code/multi-file-refactor/` contains **frozen snapshots** of `financial-automation` and `CRM-Assistant`, copied in by `setup.sh`. The top-level `financial-automation/` and `CRM-Assistant/` directories are the **canonical source** — edit those for real fixes, and edit the snapshots only when doing the Lesson 17 refactor exercise. The two each independently implemented Feishu integration; the lesson extracts a shared `common/feishu/` package (`errors.py`, `auth.py`, `http.py`, `bitable.py`, `client.py`, `__init__.py`) so both import one client. Originals are never modified during the exercise — changes land on the snapshot copies and are guarded by pre-commit + CI.
+
+### Security Guardian audit flow
+
+`Security-Guardian/openclaw_security_console/app.py` is a single stdlib HTTP server (port 8511). One audit run: read-only collect real OpenClaw evidence (ports/logs/config/skills) under `OPENCLAW_ROOT` with sampling limits and sensitive-path skips → copy into `runtime/audit_runs/<run_id>/evidence/` with copy-time text redaction → write `manifest.json` (allowedRoots, denyPatterns, expectedSchema) + `audit_request.md` → invoke `claude -p` with cwd set to the run dir (Claude reads evidence, returns JSON on stdout only) → Security Guardian writes `report.json` / `report.md`. Detection is decoupled from remediation: the `/guardian/*` endpoints only generate advice (Claude-specific `remediationSteps`/`verification` first, fixed governance templates as fallback), and `/guardian/final-audit` issues a go/no-go that blocks release on any high/critical finding or a failed Claude call (`CC-CALL-FAILED`). Unlike the Skill-only lesson 19, this is a runnable system (like ai-quant-cli) and has no `SKILL.md`. State and run artifacts under `openclaw_security_console/{state,runtime}/` are gitignored.
