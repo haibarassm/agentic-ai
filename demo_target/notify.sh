@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
-# ⚠️ 演示用假 webhook（非真实）—— 硬编码飞书 webhook，供巡检演示
-FEISHU_WEBHOOK="https://open.feishu.cn/open-apis/bot/v2/hook/FAKE-0000-demo-do-not-use"
+# ✅ 改为环境变量读取，避免硬编码 webhook URL 泄露
+# 如需测试，请在 .env 或环境中设置 FEISHU_WEBHOOK
+if [ -z "$FEISHU_WEBHOOK" ]; then
+  echo "❌ 缺少必需环境变量: FEISHU_WEBHOOK" >&2
+  echo "请在 .env 或环境中设置 FEISHU_WEBHOOK" >&2
+  exit 1
+fi
+
 curl -s -X POST "$FEISHU_WEBHOOK" -d '{"msg":"demo"}'
