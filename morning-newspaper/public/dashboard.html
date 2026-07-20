@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>今日 AI 早报</title>
+  <style>
+    body { margin: 0; font-family: Inter, Arial, "Microsoft YaHei", sans-serif; color: #182230; background: linear-gradient(180deg, #f8fafc 0%, #f3f6fb 100%); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 36px 24px 48px; }
+    .hero { margin-bottom: 20px; padding: 24px 24px 18px; border: 1px solid #e4e7ec; border-radius: 18px; background: linear-gradient(135deg, #ffffff 0%, #f7fbff 100%); box-shadow: 0 10px 30px rgba(16,24,40,0.06); }
+    .leadbox { margin-top: 16px; max-width: 980px; }
+    .leadtitle { font-size: 13px; font-weight: 800; color: #175cd3; margin-bottom: 10px; letter-spacing: .04em; text-transform: uppercase; }
+    .leadgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .leadcard { background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); border: 1px solid #dbe7ff; border-radius: 14px; padding: 14px 14px 13px; box-shadow: 0 4px 14px rgba(23,92,211,0.06); }
+    .leadcard-title { font-size: 15px; font-weight: 800; color: #182230; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+    .leadcard-summary { margin: 0; color: #475467; font-size: 14px; line-height: 1.75; }
+    h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 0; }
+    h2 { margin: 0 0 16px; font-size: 21px; letter-spacing: 0; }
+    .muted { color: #667085; font-size: 13px; }
+    .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 20px 0; }
+    .metric { background: rgba(255,255,255,0.94); border: 1px solid #e4e7ec; border-radius: 14px; padding: 14px 15px; box-shadow: 0 4px 14px rgba(16,24,40,0.04); }
+    .metric b { display: block; font-size: 24px; margin-top: 6px; }
+    .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 0.92fr); gap: 20px; align-items: start; }
+    .panel { background: rgba(255,255,255,0.97); border: 1px solid #e4e7ec; border-radius: 18px; padding: 22px; box-shadow: 0 8px 24px rgba(16,24,40,0.05); }
+    .item { border-top: 1px solid #eef2f6; padding: 22px 0; }
+    .item:first-child { border-top: 0; padding-top: 8px; }
+    .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; border: 1px solid transparent; }
+    .Urgent { color: #b42318; background: #fff1f0; border-color: #fecdca; }
+    .Important { color: #b54708; background: #fff7ed; border-color: #fed7aa; }
+    .FYI { color: #175cd3; background: #eff8ff; border-color: #b2ddff; }
+    .title { font-weight: 800; font-size: 21px; margin: 12px 0 8px; line-height: 1.4; letter-spacing: 0; }
+    .summary { line-height: 1.82; color: #344054; margin: 0 0 14px; font-size: 15px; }
+    .label { color: #344054; font-weight: 700; }
+    .meta { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 10px; }
+    .row { color: #667085; font-size: 13px; background: #f8fafc; border: 1px solid #eef2f6; border-radius: 999px; padding: 6px 10px; }
+    .link { display: inline-block; margin-top: 14px; color: #175cd3; font-weight: 700; text-decoration: none; border: 1px solid #c7d7fe; border-radius: 10px; padding: 8px 12px; background: #f5f8ff; }
+    .link:hover { background: #eaf1ff; }
+    .nolink { color: #98a2b3; }
+    a { color: #175cd3; text-decoration: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    td, th { border-top: 1px solid #eaecf0; padding: 8px; text-align: left; }
+    @media (max-width: 900px) { .metrics { grid-template-columns: repeat(2, 1fr); } .grid { grid-template-columns: 1fr; } .leadgrid { grid-template-columns: 1fr; } .hero { padding: 20px 18px 16px; } .panel { padding: 18px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>今日 AI 早报</h1>
+      <div class="muted">聚焦近 3 天 AI 技术与商业信号 | 更新时间：2026-07-04 08:57 CST</div>
+      <div class="leadbox"><div class="leadtitle">今日看点</div><div class="leadgrid"><div class="leadcard"><div class="leadcard-title">📰 Ornith-1.0: self-improving open-source models for agentic coding</div><p class="leadcard-summary">Ornith-1.0是首个自改进开源模型，专为智能体编码设计，能通过迭代训练持续提升代码生成能力</p></div><div class="leadcard"><div class="leadcard-title">📰 Qwen 3.6 27B is the sweet spot for local development</div><p class="leadcard-summary">Qwen 3.6 27B在本地开发中表现优异，性能接近前沿模型，可在消费级硬件上运行</p></div><div class="leadcard"><div class="leadcard-title">💼 Snowflake expects annual product revenue above estimates as AI boosts demand</div><p class="leadcard-summary">Snowflake预计年度产品收入超预期，AI需求推动云数据平台业务快速增长</p></div></div></div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><span class="muted">今日采集</span><b>24</b></div>
+      <div class="metric"><span class="muted">候选池</span><b>14</b></div>
+      <div class="metric"><span class="muted">Top10</span><b>3</b></div>
+      <div class="metric"><span class="muted">AI 精选</span><b>是</b></div>
+      <div class="metric"><span class="muted">重点信号</span><b>3</b></div>
+      <div class="metric"><span class="muted">今日待办</span><b>0</b></div>
+    </div>
+    <div class="grid">
+      <section class="panel">
+        <h2>Top10</h2>
+        <div class="item">
+  <div class="head"><span>#1</span><span class="badge Important">Important</span><span class="muted">Hacker News 热门故事</span></div>
+  <div class="title">📰 Ornith-1.0: self-improving open-source models for agentic coding</div>
+  <p class="summary">Ornith-1.0是首个自改进开源模型，专为智能体编码设计，能通过迭代训练持续提升代码生成能力</p>
+  <div class="meta">
+    <div class="row"><span class="label">来源</span> | Hacker News 热门故事</div>
+    <div class="row"><span class="label">发布时间</span> | 2026-06-29T17:16:17+00:00</div>
+  </div>
+  <div><a class="link" href="https://github.com/deepreinforce-ai/Ornith-1" target="_blank" rel="noopener noreferrer">访问链接</a></div>
+</div>
+<div class="item">
+  <div class="head"><span>#2</span><span class="badge Important">Important</span><span class="muted">Hacker News 热门故事</span></div>
+  <div class="title">📰 Qwen 3.6 27B is the sweet spot for local development</div>
+  <p class="summary">Qwen 3.6 27B在本地开发中表现优异，性能接近前沿模型，可在消费级硬件上运行</p>
+  <div class="meta">
+    <div class="row"><span class="label">来源</span> | Hacker News 热门故事</div>
+    <div class="row"><span class="label">发布时间</span> | 2026-06-29T17:05:16+00:00</div>
+  </div>
+  <div><a class="link" href="https://quesma.com/blog/qwen-36-is-awesome/" target="_blank" rel="noopener noreferrer">访问链接</a></div>
+</div>
+<div class="item">
+  <div class="head"><span>#3</span><span class="badge Important">Important</span><span class="muted">Tavily Search</span></div>
+  <div class="title">💼 Snowflake expects annual product revenue above estimates as AI boosts demand</div>
+  <p class="summary">Snowflake预计年度产品收入超预期，AI需求推动云数据平台业务快速增长</p>
+  <div class="meta">
+    <div class="row"><span class="label">来源</span> | Tavily Search</div>
+    <div class="row"><span class="label">发布时间</span> | 2026-06-30T00:56:41+00:00</div>
+  </div>
+  <div><a class="link" href="https://www.reuters.com/business/snowflake-expects-annual-product-revenue-above-estimates-ai-boosts-demand-2026-02-25" target="_blank" rel="noopener noreferrer">访问链接</a></div>
+</div>
+      </section>
+      <aside>
+        <section class="panel">
+          <h2>今日待办提醒</h2>
+          <p class="muted">今天暂无需要提醒的事项。</p>
+        </section>
+        <br>
+        <section class="panel">
+          <h2>来源统计</h2>
+          <table><thead><tr><th>来源</th><th>数量</th><th>状态</th></tr></thead><tbody><tr><td>github_high_stars</td><td>6</td><td>正常</td></tr>
+<tr><td>hackernews_top</td><td>6</td><td>正常</td></tr>
+<tr><td>sec_press_releases</td><td>0</td><td>正常</td></tr>
+<tr><td>fed_press_all</td><td>0</td><td>正常</td></tr>
+<tr><td>tavily_search</td><td>12</td><td>异常</td></tr>
+<tr><td>tavily_search</td><td>12</td><td>正常</td></tr></tbody></table>
+        </section>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>

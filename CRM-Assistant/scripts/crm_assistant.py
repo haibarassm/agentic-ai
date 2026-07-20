@@ -1424,14 +1424,21 @@ def sync_crm_packet_to_feishu(
         report["customer_responses"] = customer_responses
 
         existing_opportunity_records = list_feishu_bitable_records(resolved_app_token, str(resolved_opportunity_table_id), access_token)
-        existing_opportunity_record = find_feishu_record_by_opportunity_identity(
-            existing_opportunity_records,
-            opportunity_row.get("商机ID"),
-            opportunity_row.get("机会名称"),
-            opportunity_row.get("客户公司"),
-        )
         coerced_opportunity_row = coerce_row_for_bitable(opportunity_row, opportunity_fields_meta)
-        if existing_opportunity_record is None:
+        
+        # 检查是否有完全相同的快照（所有字段都相同）
+        duplicate_found = False
+        for existing_record in existing_opportunity_records:
+            existing_fields = existing_record.get("fields", {})
+            if existing_fields == coerced_opportunity_row:
+                duplicate_found = True
+                report["opportunity_action"] = "skipped"
+                report["opportunity_duplicate_record_id"] = existing_record.get("record_id")
+                opportunity_response = {"code": 0, "msg": "Duplicate snapshot - no insert needed", "data": {}}
+                break
+        
+        if not duplicate_found:
+            # 追加模式：直接创建新记录
             opportunity_response = batch_create_feishu_bitable_records(
                 resolved_app_token,
                 str(resolved_opportunity_table_id),
@@ -1439,15 +1446,11 @@ def sync_crm_packet_to_feishu(
                 access_token,
             )
             report["opportunity_action"] = "created"
-        else:
-            opportunity_response = batch_update_feishu_bitable_records(
-                resolved_app_token,
-                str(resolved_opportunity_table_id),
-                [{"record_id": existing_opportunity_record["record_id"], "fields": coerced_opportunity_row}],
-                access_token,
-            )
-            report["opportunity_action"] = "updated"
-            report["opportunity_record_id"] = existing_opportunity_record.get("record_id")
+            if opportunity_response and opportunity_response.get("code") == 0:
+                created_records = opportunity_response.get("data", {}).get("records", [])
+                if created_records:
+                    report["opportunity_record_id"] = created_records[0].get("record_id")
+        
         report["opportunity_row_fields"] = coerced_opportunity_row
         report["opportunity_response"] = opportunity_response
 
